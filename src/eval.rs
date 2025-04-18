@@ -317,11 +317,11 @@ mod tests {
         board.apply(Turn::Pass);
         for depth in 1..3 {
             let mut strategy = Negamax::new(DumbEvaluator {}, depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
 
             let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
         }
 
@@ -337,7 +337,7 @@ mod tests {
         board.apply(Turn::Pass);
         for depth in 1..3 {
             let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((0, 0)), loc_to_hex((0, -1)))), m);
         }
     }
