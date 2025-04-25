@@ -522,7 +522,7 @@ fn check_gates(board: &Board, color: usize) -> Evaluation { //Hex
         }
         if is_gate(board, adj) {
             //check if there is a filling grasshopper
-            if is_there_a_filling_grasshopper(board, 1-color, adj) || is_there_a_filling_ladybug(board, 1-color, adj) {
+            if is_there_a_filling_grasshopper(board, 1-color, adj, immovable) || is_there_a_filling_ladybug(board, 1-color, adj, immovable) {
                 continue;
             }
             //gate_hex = adj;
