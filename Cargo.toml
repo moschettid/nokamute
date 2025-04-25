@@ -10,7 +10,7 @@ license = "MIT"
 
 [dependencies]
 git-version = "0.3"
-minimax = { git = "https://github.com/edre/minimax-rs", rev = "bb04bc3ca4623545fbe3c31603335b9138ba50ca" }
+minimax = { path = "../minimax-rs" }
 rand = "0.9"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]

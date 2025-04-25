@@ -49,18 +49,18 @@ impl BasicEvaluator {
             queen_liberty_factor: 50, //aggression * 10,
             ///////////////////////////////////////////
             //v0.1.1, v0.1.1.1 with check on grasshopper and ladybug
-            gates_factor: (6-aggression) * 10,//NEED TO FIND THE RIGHT VALUE, value winning against nokamute: 4
+            gates_factor: (6 - aggression) * 10, //NEED TO FIND THE RIGHT VALUE, value winning against nokamute: 4
             ///////////////////////////////////////////
             //v0.1.3.. not good
-            queen_spawn_factor: aggression * 8,//aggression * 2
+            queen_spawn_factor: aggression * 8, //aggression * 2
             ///////////////////////////////////////////
-            movable_queen_value: 1,//aggression*4
-            movable_bug_factor: 2,//2
+            movable_queen_value: 1, //aggression*4
+            movable_bug_factor: 2,  //2
             ///////////////////////////////////////////
             //v0.1.2 we have added the spawn flag for unplayed bugs
-            unplayed_bug_factor: 1,//1
+            unplayed_bug_factor: 1, //1
             ///////////////////////////////////////////
-            pillbug_defense_bonus: (6-aggression) * 40,//aggression * 40
+            pillbug_defense_bonus: (6 - aggression) * 40, //aggression * 40
         }
     }
 
@@ -71,13 +71,13 @@ impl BasicEvaluator {
     fn value(&self, bug: Bug) -> Evaluation {
         // Mostly made up. All I know is that ants are good.
         match bug {
-            Bug::Queen => 3,//self.movable_queen_value
+            Bug::Queen => 3, //self.movable_queen_value
             Bug::Ant => 7,
             Bug::Beetle => 6,
-            Bug::Grasshopper => 3,//2, 4 with the strong gate check
+            Bug::Grasshopper => 3, //2, 4 with the strong gate check
             Bug::Spider => 2,
             Bug::Mosquito => 8, // See below.
-            Bug::Ladybug => 4, //6
+            Bug::Ladybug => 4,  //6
             Bug::Pillbug => 5,
         }
     }
@@ -193,7 +193,8 @@ impl Evaluator for BasicEvaluator {
                     queen_score[node.color() as usize] -= self.queen_liberty_factor;
                 } else {
                     // Lower penalty for being able to leave.
-                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 3;//original: /2
+                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 3;
+                    //original: /2
                 }
                 if pillbug_powers && board.node(friendly_queen).clipped_height() == 1 {
                     let best_escape = adjacent(hex)
@@ -208,7 +209,8 @@ impl Evaluator for BasicEvaluator {
                         .max()
                         .unwrap_or(0);
                     // maybe also best escape == 1 or 2 can be a good idea
-                    if best_escape > 1 {//original: > 2
+                    if best_escape > 1 {
+                        //original: > 2
                         pillbug_defense[node.color() as usize] = true;
                     }
                 }
@@ -233,7 +235,8 @@ impl Evaluator for BasicEvaluator {
                         })
                         .min()
                         .unwrap_or(6);
-                    if best_unescape < 4 { //original: < 3
+                    if best_unescape < 4 {
+                        //original: < 3
                         queen_score[node.color().other()] = -self.queen_liberty_factor;
                     }
                 }
@@ -277,38 +280,57 @@ impl Evaluator for BasicEvaluator {
             * (pillbug_defense[board.to_move() as usize] as Evaluation
                 - pillbug_defense[board.to_move().other()] as Evaluation);
 
-        
         // Check for gates.
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
-        gates_score[board.to_move() as usize] += self.gates_factor*check_gates(board, board.to_move() as usize)*(4-count_free_grasshoppers(board, board.to_move().other(), immovable))/4;
-        gates_score[board.to_move().other()] -= self.gates_factor*check_gates(board, board.to_move().other())*(4-count_free_grasshoppers(board, board.to_move() as usize, immovable))/4;
-        let gates_score = gates_score[board.to_move() as usize] - gates_score[board.to_move().other()];
-        
+        gates_score[board.to_move() as usize] += self.gates_factor
+            * check_gates(board, board.to_move() as usize)
+            * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable))
+            / 4;
+        gates_score[board.to_move().other()] -= self.gates_factor
+            * check_gates(board, board.to_move().other())
+            * (4 - count_free_grasshoppers(board, board.to_move() as usize, &immovable))
+            / 4;
+        let gates_score =
+            gates_score[board.to_move() as usize] - gates_score[board.to_move().other()];
+
         // Check for spawn points next to opponent queen
         // before check if there is an available beetle, otherwise the spawn points will be 0
         //check also if there are bugs that can easily pin our beetle in the future
         let mut queen_spawn_score = 0;
-        if remaining_available_beetle(board, board.to_move() as usize){
-            if pinning_beatle_pieces(board, board.to_move().other() as usize){
-                queen_spawn_score = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move() as usize)/16;
-            }else{
-                queen_spawn_score = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move() as usize);
-            }            
-        }
-        let mut queen_spawn_score_opponent = 0;
-        if remaining_available_beetle(board, board.to_move().other() as usize) && !pinning_beatle_pieces(board, board.to_move() as usize){
-            if pinning_beatle_pieces(board, board.to_move().other() as usize){
-                queen_spawn_score_opponent = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move().other() as usize)/16;
-            }else{
-                queen_spawn_score_opponent = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move().other() as usize);
+        if remaining_available_beetle(board, board.to_move() as usize) {
+            if pinning_beatle_pieces(board, board.to_move().other() as usize, &immovable) {
+                queen_spawn_score = self.queen_spawn_factor
+                    * count_queen_spawn_points(board, board.to_move() as usize)
+                    / 16;
+            } else {
+                queen_spawn_score = self.queen_spawn_factor
+                    * count_queen_spawn_points(board, board.to_move() as usize);
             }
         }
-        
+        let mut queen_spawn_score_opponent = 0;
+        if remaining_available_beetle(board, board.to_move().other() as usize)
+            && !pinning_beatle_pieces(board, board.to_move() as usize, &immovable)
+        {
+            if pinning_beatle_pieces(board, board.to_move().other() as usize, &immovable) {
+                queen_spawn_score_opponent = self.queen_spawn_factor
+                    * count_queen_spawn_points(board, board.to_move().other() as usize)
+                    / 16;
+            } else {
+                queen_spawn_score_opponent = self.queen_spawn_factor
+                    * count_queen_spawn_points(board, board.to_move().other() as usize);
+            }
+        }
+
         let queen_spawn_score = queen_spawn_score - queen_spawn_score_opponent;
-        
-        
-        let queen_score = queen_score[board.to_move() as usize] - queen_score[board.to_move().other()];
-        queen_score + pillbug_defense_score + score + gates_score + unplayed_bug_score + queen_spawn_score
+
+        let queen_score =
+            queen_score[board.to_move() as usize] - queen_score[board.to_move().other()];
+        queen_score
+            + pillbug_defense_score
+            + score
+            + gates_score
+            + unplayed_bug_score
+            + queen_spawn_score
     }
 
     // The idea here is to use quiescence search to avoid ending on a
@@ -399,9 +421,8 @@ mod tests {
     }
 }
 
-
 // TODO: check about the Qualify to win condition for a given player and set consequently the aggression value
-// This condition checks if: there is no opponent pillbug near the opponet queen 
+// This condition checks if: there is no opponent pillbug near the opponet queen
 // if there is one, check if our beetle are on the opponent queen or on the opponent pillbug
 // or if the opponent pillbug has no liberties to move the queen
 
@@ -445,16 +466,13 @@ fn is_there_a_filling_grasshopper(board: &Board, color: usize, hex: Hex) -> bool
                         break;
                     }
                 }
-                if dist > 1 {
-                    if jump == hex {
-                        // Check if the grasshopper can jump to the hex
-                        return true; // Found a filling grasshopper
-                    }
+                if dist > 1 && jump == hex {
+                    return true; // Found a filling grasshopper
                 }
             }
         }
     }
-    return false // No filling grasshopper found
+    return false; // No filling grasshopper found
 }
 
 fn is_there_a_filling_ladybug(board: &Board, color: usize, hex: Hex) -> bool {
@@ -488,7 +506,7 @@ fn is_there_a_filling_ladybug(board: &Board, color: usize, hex: Hex) -> bool {
             }
         }
     }
-    return false // No filling ladybug found
+    return false; // No filling ladybug found
 }
 
 fn count_free_grasshoppers(board: &Board, color: usize, immovable: &HexSet) -> Evaluation {
@@ -500,7 +518,7 @@ fn count_free_grasshoppers(board: &Board, color: usize, immovable: &HexSet) -> E
         if node.bug() == Bug::Grasshopper {
             // Check if the grasshopper is immovable, otherwise count it
             if !immovable.get(hex) {
-                count++; // Skip immovable grasshoppers
+                count += 1 // Skip immovable grasshoppers
             }
         }
     }
@@ -511,7 +529,8 @@ fn count_free_grasshoppers(board: &Board, color: usize, immovable: &HexSet) -> E
     count // Return the total count of free grasshoppers
 }
 
-fn check_gates(board: &Board, color: usize) -> Evaluation { //Hex
+fn check_gates(board: &Board, color: usize) -> Evaluation {
+    //Hex
     let queen = board.queens[color as usize];
     let mut gates = 0;
     //let mut gate_hex = loc_to_hex((0, 0));
@@ -522,7 +541,9 @@ fn check_gates(board: &Board, color: usize) -> Evaluation { //Hex
         }
         if is_gate(board, adj) {
             //check if there is a filling grasshopper
-            if is_there_a_filling_grasshopper(board, 1-color, adj, immovable) || is_there_a_filling_ladybug(board, 1-color, adj, immovable) {
+            if is_there_a_filling_grasshopper(board, 1 - color, adj)
+                || is_there_a_filling_ladybug(board, 1 - color, adj)
+            {
                 continue;
             }
             //gate_hex = adj;
@@ -539,7 +560,8 @@ fn is_gate(board: &Board, hex: Hex) -> bool {
     //assumptions: the hex is free
     let mut neighbors = [0; 6]; // Mutable array to hold neighbors.
     let origin = hex; // Use the same hex as origin if no specific origin is needed.
-    return board.slidable_adjacent(&mut neighbors, origin, hex).collect().is_empty(); // Otherwise, it's not a gate.
+    return board.slidable_adjacent(&mut neighbors, origin, hex).collect::<Vec<_>>().is_empty();
+    // Otherwise, it's not a gate.
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -580,22 +602,20 @@ fn pinning_beatle_pieces(board: &Board, color: usize, immovable: &HexSet) -> boo
             //check if the node can move
             //check if an adjacent is occupied by an Ant
             for adj in adjacent(hex) {
-                if board.occupied(adj) && board.node(adj).bug() == Bug::Ant {
-                    if !immovable.get(hex) {
-                        count++; // Skip immovable grasshoppers
-                    }
+                if board.occupied(adj) && board.node(adj).bug() == Bug::Ant && !immovable.get(hex) {
+                    return true; // Skip immovable grasshoppers
                 }
             }
         }
     }
     false // No pinned beetle found
-    //NOTE: here Spider, Ladybug, Grasshopper are not considered as they are more unlikely to pin a beetle
+          //NOTE: here Spider, Ladybug, Grasshopper are not considered as they are more unlikely to pin a beetle
 }
 
 //function to count the spawn points near a peice next to the adversary queen
 fn count_queen_spawn_points(board: &Board, color: usize) -> Evaluation {
     //opponent queen
-    let opp_queen = board.queens[1-(color as usize)];//not opponent queen
+    let opp_queen = board.queens[1 - (color as usize)]; //not opponent queen
     let mut queen_spawn = 0;
     //check if there are our pieces next to the opponent queen
     for adj in adjacent(opp_queen) {
@@ -677,7 +697,7 @@ mod test_spawn_points_flag {
         assert_eq!(spawn_points_flag(&board, 1), true);
     }
 }
-
+/*
 #[cfg(test)]
 mod test_count_queen_spawn_points {
     use super::*;
@@ -710,8 +730,7 @@ mod test_count_queen_spawn_points {
         assert_eq!(pinning_beatle_pieces(&board, 1), false);
     }
 }
-
-
+*/
 /*
 TODO:
 - Spawn points near the queen, need improvements
