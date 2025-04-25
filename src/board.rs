@@ -17,18 +17,10 @@ pub enum Color {
 }
 
 impl Color {
-    pub fn other(self) -> usize {
-        1 - self as usize
-    }
-}
-
-//I need to be able to convert from usize to Color
-impl Color {
-    pub fn from_usize(value: usize) -> Self {
-        match value {
-            0 => Color::White,
-            1 => Color::Black,
-            _ => panic!("Invalid value for Color: {}", value),
+    pub fn other(self) -> Color {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
         }
     }
 }
@@ -396,7 +388,7 @@ impl Board {
 impl Board {
     fn generate_placements(&self, turns: &mut Vec<Turn>) {
         let mut no_placement = HexSet::new();
-        for &enemy in self.occupied_hexes[self.to_move().other()].iter() {
+        for &enemy in self.occupied_hexes[self.to_move().other() as usize].iter() {
             for adj in adjacent(enemy) {
                 no_placement.set(adj);
             }
@@ -897,7 +889,7 @@ impl minimax::Game for Rules {
             Some(minimax::Winner::Draw)
         } else if queens_surrounded[board.to_move() as usize] == 6 {
             Some(minimax::Winner::PlayerJustMoved)
-        } else if queens_surrounded[board.to_move().other()] == 6 {
+        } else if queens_surrounded[board.to_move().other() as usize] == 6 {
             Some(minimax::Winner::PlayerToMove)
         } else {
             None
