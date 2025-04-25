@@ -46,10 +46,11 @@ pub struct BasicEvaluator {
 impl BasicEvaluator {
     pub(crate) fn new(aggression: u8) -> Self {
         // Ensure aggression is a dial between 1 and 5.
-        let aggression = aggression.clamp(1, 5) as Evaluation;
+        let mut aggression = aggression.clamp(1, 5) as Evaluation;
+        aggression = 5;
         Self {
             aggression,
-            queen_liberty_factor: 50, //aggression * 10,
+            queen_liberty_factor: 200, //aggression * 10,
             ///////////////////////////////////////////
             //v0.1.1, v0.1.1.1 with check on grasshopper and ladybug
             gates_factor: (6 - aggression) * 10, //NEED TO FIND THE RIGHT VALUE, value winning against nokamute: 4
@@ -66,7 +67,7 @@ impl BasicEvaluator {
             pillbug_defense_bonus: (6 - aggression) * 40, //aggression * 40
             ///////////////////////////////////////////
             //v0.1.4 ant game
-            ant_game: aggression * 10, //aggression * 10
+            ant_game: aggression * 5, //aggression * 10
             ///////////////////////////////////////////
         }
     }
@@ -152,6 +153,11 @@ impl Evaluator for BasicEvaluator {
         // Calculate the difference between the two players' played ants.
         let mut ant = 0;
         let mut ant_opponent = 0;
+        //if initial turns, put ant and mosquito score to 0 and don't count the ant game
+        let mut initial_turns = false;
+        if board.turn_num < 20 {
+            initial_turns = true;
+        }
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
             let mut bug_score = self.value(node.bug());
@@ -191,6 +197,11 @@ impl Evaluator for BasicEvaluator {
                 }
             };
             if node.bug() == Bug::Ant || mosquito_ant {
+                //put score to 0 if it's initial turns
+                if initial_turns {
+                    bug_score = 0;
+                }
+                // Count the number of ants for each player.
                 if node.color() == board.to_move() {
                     ant += 1;
                 } else {
@@ -219,8 +230,7 @@ impl Evaluator for BasicEvaluator {
                     queen_score[node.color() as usize] -= self.queen_liberty_factor;
                 } else {
                     // Lower penalty for being able to leave.
-                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 3;
-                    //original: /2
+                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 2;
                 }
                 if pillbug_powers && board.node(friendly_queen).clipped_height() == 1 {
                     let best_escape = adjacent(hex)
@@ -248,7 +258,7 @@ impl Evaluator for BasicEvaluator {
                 // Discourage liberty filling by valuable bugs, by setting their score to zero when filling a liberty.
                 bug_score = 0;
                 // A little extra boost for filling opponent's queen, as we will never choose to move.
-                queen_score[node.color().other() as usize] -= self.queen_liberty_factor * 2; //original: * 12 / 10
+                queen_score[node.color().other() as usize] -= self.queen_liberty_factor * 2 * self.aggression; //original: * 12 / 10
                 if pillbug_powers {
                     let best_unescape = adjacent(hex)
                         .into_iter()
@@ -289,7 +299,7 @@ impl Evaluator for BasicEvaluator {
         //check for ant game
         let ant_difference = ant - ant_opponent;
         // if it's one of the first 4 moves, we don't want to count the ants
-        if board.turn_num > 3 {
+        if !initial_turns {
             score += self.ant_game * ant_difference;
         }
 
@@ -781,4 +791,6 @@ Added from nokamute:
 
 //Last thing done: spawn points near the queen
 
-//errore riga 173
+//TODO: - extra strong queen liberty factor
+//      - initial turns
+//      - aggression fixed at 5
