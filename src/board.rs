@@ -22,6 +22,17 @@ impl Color {
     }
 }
 
+//I need to be able to convert from usize to Color
+impl Color {
+    pub fn from_usize(value: usize) -> Self {
+        match value {
+            0 => Color::White,
+            1 => Color::Black,
+            _ => panic!("Invalid value for Color: {}", value),
+        }
+    }
+}
+
 // bit 7: Color
 // bits 4-6: Bug
 // bits 3-4: Bug num
@@ -505,7 +516,7 @@ impl Board {
     // unrestricted), climbing bugs need to slide into/out of the higher of
     // source or dest heights.
     // https://www.boardgamegeek.com/thread/332467
-    fn slidable_adjacent_beetle<'a>(
+    pub(crate) fn slidable_adjacent_beetle<'a>(
         &self, out: &'a mut [Hex; 6], orig: Hex, hex: Hex,
     ) -> impl Iterator<Item = Hex> + 'a {
         let mut self_height = self.height(hex);
