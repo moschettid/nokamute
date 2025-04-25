@@ -67,7 +67,7 @@ impl BasicEvaluator {
             ///////////////////////////////////////////
             //v0.1.4 ant game
             ant_game: aggression * 10, //aggression * 10
-                                       ///////////////////////////////////////////
+            ///////////////////////////////////////////
         }
     }
 
@@ -288,7 +288,10 @@ impl Evaluator for BasicEvaluator {
 
         //check for ant game
         let ant_difference = ant - ant_opponent;
-        score += self.ant_game * ant_difference;
+        // if it's one of the first 4 moves, we don't want to count the ants
+        if board.turn_num > 3 {
+            score += self.ant_game * ant_difference;
+        }
 
         let mut pillbug_defense_score = self.pillbug_defense_bonus
             * (pillbug_defense[board.to_move() as usize] as Evaluation
