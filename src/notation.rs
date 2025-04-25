@@ -26,7 +26,7 @@ impl From<std::io::Error> for UhpError {
 pub type Result<T> = std::result::Result<T, UhpError>;
 
 pub fn nokamute_version() -> &'static str {
-    let version = "0.1.3";
+    let version = "0.1.4";
     version.strip_prefix('v').unwrap_or(version)
 }
 

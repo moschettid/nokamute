@@ -26,6 +26,7 @@ pub struct BasicEvaluator {
     unplayed_bug_factor: Evaluation,
     // Bonus for defensive pillbug or placeability thereof.
     pillbug_defense_bonus: Evaluation,
+    ant_game: Evaluation,
 }
 
 // Ideas:
@@ -61,6 +62,10 @@ impl BasicEvaluator {
             unplayed_bug_factor: 1, //1
             ///////////////////////////////////////////
             pillbug_defense_bonus: (6 - aggression) * 40, //aggression * 40
+            ///////////////////////////////////////////
+            //v0.1.4 ant game
+            ant_game: aggression*10, //aggression * 10
+            ///////////////////////////////////////////
         }
     }
 
@@ -142,11 +147,15 @@ impl Evaluator for BasicEvaluator {
             }
         }
 
+        // Calculate the difference between the two players' played ants.
+        let mut ant = 0;
+        let mut ant_opponent = 0;
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
             let mut bug_score = self.value(node.bug());
             let mut pillbug_powers = node.bug() == Bug::Pillbug;
             let mut crawler = node.bug().crawler();
+            let mut mosquito_ant = false;
             if node.bug() == Bug::Mosquito {
                 // Mosquitos are valued as they can currently move.
                 bug_score = 0;
@@ -166,11 +175,21 @@ impl Evaluator for BasicEvaluator {
                             if !bug.crawler() {
                                 crawler = false;
                             }
+                            if bug == Bug::Ant {
+                                mosquito_ant = true;
+                            }
                         }
                     }
                 }
             };
             //errore, qui il mosquito prende lo score dall'ultimo degli adj!
+            if node.bug() == Bug::Ant || mosquito_ant {
+                if node.color() == board.to_move() {
+                    ant += 1;
+                }else {
+                    ant_opponent += 1;
+                }
+            }
 
             if crawler {
                 // Treat blocked crawlers as immovable.
@@ -259,6 +278,10 @@ impl Evaluator for BasicEvaluator {
             }
             score += bug_score;
         }
+
+        //check for ant game
+        let ant_difference = ant - ant_opponent;
+        score += self.ant_game * ant_difference;
 
         let mut pillbug_defense_score = self.pillbug_defense_bonus
             * (pillbug_defense[board.to_move() as usize] as Evaluation
