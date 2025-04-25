@@ -280,8 +280,8 @@ impl Evaluator for BasicEvaluator {
         
         // Check for gates.
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
-        gates_score[board.to_move() as usize] += self.gates_factor*check_gates(board, board.to_move() as usize)*(4-count_free_grasshoppers(board, board.to_move().other()))/4;
-        gates_score[board.to_move().other()] -= self.gates_factor*check_gates(board, board.to_move().other())*(4-count_free_grasshoppers(board, board.to_move() as usize))/4;
+        gates_score[board.to_move() as usize] += self.gates_factor*check_gates(board, board.to_move() as usize)*(4-count_free_grasshoppers(board, board.to_move().other(), immovable))/4;
+        gates_score[board.to_move().other()] -= self.gates_factor*check_gates(board, board.to_move().other())*(4-count_free_grasshoppers(board, board.to_move() as usize, immovable))/4;
         let gates_score = gates_score[board.to_move() as usize] - gates_score[board.to_move().other()];
         
         // Check for spawn points next to opponent queen
@@ -290,7 +290,7 @@ impl Evaluator for BasicEvaluator {
         let mut queen_spawn_score = 0;
         if remaining_available_beetle(board, board.to_move() as usize){
             if pinning_beatle_pieces(board, board.to_move().other() as usize){
-                queen_spawn_score = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move() as usize)*1/16;
+                queen_spawn_score = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move() as usize)/16;
             }else{
                 queen_spawn_score = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move() as usize);
             }            
@@ -298,7 +298,7 @@ impl Evaluator for BasicEvaluator {
         let mut queen_spawn_score_opponent = 0;
         if remaining_available_beetle(board, board.to_move().other() as usize) && !pinning_beatle_pieces(board, board.to_move() as usize){
             if pinning_beatle_pieces(board, board.to_move().other() as usize){
-                queen_spawn_score_opponent = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move().other() as usize)*1/16;
+                queen_spawn_score_opponent = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move().other() as usize)/16;
             }else{
                 queen_spawn_score_opponent = self.queen_spawn_factor*count_queen_spawn_points(board, board.to_move().other() as usize);
             }
@@ -454,7 +454,7 @@ fn is_there_a_filling_grasshopper(board: &Board, color: usize, hex: Hex) -> bool
             }
         }
     }
-    false // No filling grasshopper found
+    return false // No filling grasshopper found
 }
 
 fn is_there_a_filling_ladybug(board: &Board, color: usize, hex: Hex) -> bool {
@@ -488,19 +488,19 @@ fn is_there_a_filling_ladybug(board: &Board, color: usize, hex: Hex) -> bool {
             }
         }
     }
-    false // No filling ladybug found
+    return false // No filling ladybug found
 }
 
-fn count_free_grasshoppers(board: &Board, color: usize) -> Evaluation {
+fn count_free_grasshoppers(board: &Board, color: usize, immovable: &HexSet) -> Evaluation {
     let mut count = 0;
 
     // Count grasshoppers already on the board and free to move
     for &hex in board.occupied_hexes[color as usize].iter() {
         let node = board.node(hex);
         if node.bug() == Bug::Grasshopper {
-            // Check if the grasshopper is pinned
-            if board.slidable_adjacent(&mut neighbors, hex, hex).next().is_some() {
-                count += 1; // Increment count for each free grasshopper found
+            // Check if the grasshopper is immovable, otherwise count it
+            if !immovable.get(hex) {
+                count++; // Skip immovable grasshoppers
             }
         }
     }
@@ -539,11 +539,7 @@ fn is_gate(board: &Board, hex: Hex) -> bool {
     //assumptions: the hex is free
     let mut neighbors = [0; 6]; // Mutable array to hold neighbors.
     let origin = hex; // Use the same hex as origin if no specific origin is needed.
-    let slidable_positions: Vec<_> = board.slidable_adjacent(&mut neighbors, origin, hex).collect();
-    if slidable_positions.is_empty() {
-        return true; // No slidable positions means it's a gate.
-    }
-    return false; // Otherwise, it's not a gate.
+    return board.slidable_adjacent(&mut neighbors, origin, hex).collect().is_empty(); // Otherwise, it's not a gate.
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -565,33 +561,28 @@ fn spawn_points_flag(board: &Board, color: usize) -> bool {
 //function to see if there is an available beetle among unplaced pieces
 fn remaining_available_beetle(board: &Board, color: usize) -> bool {
     //check if there is an available beetle among unplaced pieces
-    if board.remaining[color as usize][Bug::Beetle as usize] > 0 {
-        return true;
-    }
-    false
+    return board.remaining[color as usize][Bug::Beetle as usize] > 0;
 }
 
 //aggiungi il colore
-fn pinning_beatle_pieces(board: &Board, color: usize) -> bool {
+fn pinning_beatle_pieces(board: &Board, color: usize, immovable: &HexSet) -> bool {
     //check if there are bugs that can easily pin our beetle in the future
     for &hex in board.occupied_hexes[color as usize].iter() {
         let node = board.node(hex);
         //check if there are movable Ants, Mosquitos next to Ants
         if node.bug() == Bug::Ant {
             //check if the node can move
-            let mut neighbors = [0; 6];
-            if board.slidable_adjacent(&mut neighbors, hex, hex).next().is_some() {
-                return true;
+            if !immovable.get(hex) {
+                return true; // Skip immovable grasshoppers
             }
         }
         if node.bug() == Bug::Mosquito {
             //check if the node can move
-            let mut neighbors = [0; 6];
             //check if an adjacent is occupied by an Ant
             for adj in adjacent(hex) {
                 if board.occupied(adj) && board.node(adj).bug() == Bug::Ant {
-                    if board.slidable_adjacent(&mut neighbors, hex, hex).next().is_some() {
-                        return true;
+                    if !immovable.get(hex) {
+                        count++; // Skip immovable grasshoppers
                     }
                 }
             }
