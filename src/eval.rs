@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use crate::board::*;
 use crate::bug::Bug;
 use crate::hex_grid::*;
@@ -64,8 +66,8 @@ impl BasicEvaluator {
             pillbug_defense_bonus: (6 - aggression) * 40, //aggression * 40
             ///////////////////////////////////////////
             //v0.1.4 ant game
-            ant_game: aggression*10, //aggression * 10
-            ///////////////////////////////////////////
+            ant_game: aggression * 10, //aggression * 10
+                                       ///////////////////////////////////////////
         }
     }
 
@@ -160,6 +162,8 @@ impl Evaluator for BasicEvaluator {
                 // Mosquitos are valued as they can currently move.
                 bug_score = 0;
                 crawler = true;
+                let can_slide_mosquito =
+                    board.slidable_adjacent(&mut buf, hex, hex).next().is_some();
                 if node.is_stacked() {
                     bug_score = self.value(Bug::Beetle);
                 } else {
@@ -167,7 +171,10 @@ impl Evaluator for BasicEvaluator {
                         if board.occupied(adj) {
                             let bug = board.node(adj).bug();
                             if bug != Bug::Queen {
-                                bug_score = self.value(bug);
+                                if bug.crawler() && !can_slide_mosquito {
+                                    continue;
+                                }
+                                bug_score = max(bug_score, self.value(bug));
                             }
                             if bug == Bug::Pillbug {
                                 pillbug_powers = true;
@@ -180,13 +187,13 @@ impl Evaluator for BasicEvaluator {
                             }
                         }
                     }
+                    bug_score += 2; //Can we improve this estimate?
                 }
             };
-            //errore, qui il mosquito prende lo score dall'ultimo degli adj!
             if node.bug() == Bug::Ant || mosquito_ant {
                 if node.color() == board.to_move() {
                     ant += 1;
-                }else {
+                } else {
                     ant_opponent += 1;
                 }
             }
