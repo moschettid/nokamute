@@ -68,7 +68,7 @@ impl BasicEvaluator {
             ///////////////////////////////////////////
             //v0.1.4 ant game
             ant_game: aggression * 5, //aggression * 10
-            ///////////////////////////////////////////
+                                      ///////////////////////////////////////////
         }
     }
 
@@ -97,8 +97,6 @@ impl Default for BasicEvaluator {
     }
 }
 
-//COMMENT: adj == origin not needed for this function..
-//ape regina deve scappare non è una liberty la posizione di partenza
 fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> Evaluation {
     adjacent(hex).into_iter().filter(|&adj| adj == origin || !board.occupied(adj)).count()
         as Evaluation
@@ -131,6 +129,7 @@ impl Evaluator for BasicEvaluator {
         let mut queen_score = [0; 2];
         let mut gates_score = [0; 2];
         let mut unplayed_bug_score = 0;
+        let mut can_pin_beetle = [false; 2];
 
         // Check for spawn points.
         let spawn_flag = spawn_points_flag(board, board.to_move());
@@ -155,7 +154,7 @@ impl Evaluator for BasicEvaluator {
         let mut ant_opponent = 0;
         //if initial turns, put ant and mosquito score to 0 and don't count the ant game
         let mut initial_turns = false;
-        if board.turn_num < 20 {
+        if board.turn_num < 11 {
             initial_turns = true;
         }
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
@@ -197,6 +196,9 @@ impl Evaluator for BasicEvaluator {
                 }
             };
             if node.bug() == Bug::Ant || mosquito_ant {
+                if !immovable.get(hex) {
+                    can_pin_beetle[node.color() as usize] = true;
+                }
                 //put score to 0 if it's initial turns
                 if initial_turns {
                     bug_score = 0;
@@ -217,7 +219,7 @@ impl Evaluator for BasicEvaluator {
             }
 
             if node.is_stacked() {
-                bug_score *= 2;
+                bug_score *= 4; //It was 2
             }
 
             let friendly_queen = board.queens[node.color() as usize];
@@ -232,7 +234,10 @@ impl Evaluator for BasicEvaluator {
                     // Lower penalty for being able to leave.
                     queen_score[node.color() as usize] -= self.queen_liberty_factor / 2;
                 }
-                if pillbug_powers && board.node(friendly_queen).clipped_height() == 1 {
+                if pillbug_powers
+                    && board.node(friendly_queen).clipped_height() == 1
+                    && !immovable.get(friendly_queen)
+                {
                     let best_escape = adjacent(hex)
                         .into_iter()
                         .map(|lib| {
@@ -245,8 +250,7 @@ impl Evaluator for BasicEvaluator {
                         .max()
                         .unwrap_or(0);
                     // maybe also best escape == 1 or 2 can be a good idea
-                    if best_escape > 1 {
-                        //original: > 2
+                    if best_escape > 2 {
                         pillbug_defense[node.color() as usize] = true;
                     }
                 }
@@ -258,8 +262,12 @@ impl Evaluator for BasicEvaluator {
                 // Discourage liberty filling by valuable bugs, by setting their score to zero when filling a liberty.
                 bug_score = 0;
                 // A little extra boost for filling opponent's queen, as we will never choose to move.
-                queen_score[node.color().other() as usize] -= self.queen_liberty_factor * 2 * self.aggression; //original: * 12 / 10
-                if pillbug_powers {
+                queen_score[node.color().other() as usize] -=
+                    self.queen_liberty_factor * 2 * self.aggression; //original: * 12 / 10
+                if pillbug_powers
+                    && board.node(enemy_queen).clipped_height() == 1
+                    && !immovable.get(enemy_queen)
+                {
                     let best_unescape = adjacent(hex)
                         .into_iter()
                         .map(|lib| {
@@ -271,8 +279,7 @@ impl Evaluator for BasicEvaluator {
                         })
                         .min()
                         .unwrap_or(6);
-                    if best_unescape < 4 {
-                        //original: < 3
+                    if best_unescape < 3 {
                         queen_score[node.color().other() as usize] = -self.queen_liberty_factor;
                     }
                 }
@@ -283,6 +290,7 @@ impl Evaluator for BasicEvaluator {
                 continue;
             }
 
+            //Why this factor?
             bug_score *= self.movable_bug_factor;
             if node.color() != board.to_move() {
                 bug_score = -bug_score;
@@ -327,12 +335,10 @@ impl Evaluator for BasicEvaluator {
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
         gates_score[board.to_move() as usize] += self.gates_factor
             * check_gates(board, board.to_move())
-            * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable))
-            / 4;
+            * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable));
         gates_score[board.to_move().other() as usize] -= self.gates_factor
             * check_gates(board, board.to_move().other())
-            * (4 - count_free_grasshoppers(board, board.to_move(), &immovable))
-            / 4;
+            * (4 - count_free_grasshoppers(board, board.to_move(), &immovable));
         let gates_score =
             gates_score[board.to_move() as usize] - gates_score[board.to_move().other() as usize];
 
@@ -341,25 +347,18 @@ impl Evaluator for BasicEvaluator {
         //check also if there are bugs that can easily pin our beetle in the future
         let mut queen_spawn_score = 0;
         if remaining_available_beetle(board, board.to_move()) {
-            if pinning_beatle_pieces(board, board.to_move().other(), &immovable) {
-                queen_spawn_score =
-                    self.queen_spawn_factor * count_queen_spawn_points(board, board.to_move()) / 16;
-            } else {
-                queen_spawn_score =
-                    self.queen_spawn_factor * count_queen_spawn_points(board, board.to_move());
+            queen_spawn_score =
+                self.queen_spawn_factor * count_queen_spawn_points(board, board.to_move());
+            if can_pin_beetle[board.to_move().other() as usize] {
+                queen_spawn_score /= 8;
             }
         }
         let mut queen_spawn_score_opponent = 0;
-        if remaining_available_beetle(board, board.to_move().other())
-            && !pinning_beatle_pieces(board, board.to_move(), &immovable)
-        {
-            if pinning_beatle_pieces(board, board.to_move().other(), &immovable) {
-                queen_spawn_score_opponent = self.queen_spawn_factor
-                    * count_queen_spawn_points(board, board.to_move().other())
-                    / 16;
-            } else {
-                queen_spawn_score_opponent = self.queen_spawn_factor
-                    * count_queen_spawn_points(board, board.to_move().other());
+        if remaining_available_beetle(board, board.to_move().other()) {
+            queen_spawn_score_opponent =
+                self.queen_spawn_factor * count_queen_spawn_points(board, board.to_move().other());
+            if can_pin_beetle[board.to_move() as usize] {
+                queen_spawn_score_opponent /= 8;
             }
         }
 
@@ -628,32 +627,6 @@ fn remaining_available_beetle(board: &Board, color: Color) -> bool {
     board.remaining[color as usize][Bug::Beetle as usize] > 0
 }
 
-//aggiungi il colore
-fn pinning_beatle_pieces(board: &Board, color: Color, immovable: &HexSet) -> bool {
-    //check if there are bugs that can easily pin our beetle in the future
-    for &hex in board.occupied_hexes[color as usize].iter() {
-        let node = board.node(hex);
-        //check if there are movable Ants, Mosquitos next to Ants
-        if node.bug() == Bug::Ant {
-            //check if the node can move
-            if !immovable.get(hex) {
-                return true; // Skip immovable grasshoppers
-            }
-        }
-        if node.bug() == Bug::Mosquito {
-            //check if the node can move
-            //check if an adjacent is occupied by an Ant
-            for adj in adjacent(hex) {
-                if board.occupied(adj) && board.node(adj).bug() == Bug::Ant && !immovable.get(hex) {
-                    return true; // Skip immovable grasshoppers
-                }
-            }
-        }
-    }
-    false // No pinned beetle found
-          //NOTE: here Spider, Ladybug, Grasshopper are not considered as they are more unlikely to pin a beetle
-}
-
 //function to count the spawn points near a peice next to the adversary queen
 fn count_queen_spawn_points(board: &Board, color: Color) -> Evaluation {
     //opponent queen
@@ -756,7 +729,6 @@ mod test_count_queen_spawn_points {
         board.apply(Turn::Pass);
         assert_eq!(count_queen_spawn_points(&board, 0), 4);
         assert_eq!(count_queen_spawn_points(&board, 1), 2);
-        assert_eq!(pinning_beatle_pieces(&board, 1), true);
 
         let mut board = Board::default();
         board.apply(Turn::Place(loc_to_hex((0, 0)), Bug::Queen));
@@ -769,7 +741,6 @@ mod test_count_queen_spawn_points {
         board.apply(Turn::Pass);
         assert_eq!(count_queen_spawn_points(&board, 0), 4);
         assert_eq!(count_queen_spawn_points(&board, 1), 2);
-        assert_eq!(pinning_beatle_pieces(&board, 1), false);
     }
 }
 */
