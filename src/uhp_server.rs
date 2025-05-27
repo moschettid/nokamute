@@ -181,7 +181,7 @@ impl<W: Write> UhpServer<W> {
 
     fn get_option(&mut self, option: &str) -> Result<()> {
         match option {
-            "Aggression" => self.get_option_int::<AggressionOption>(),
+            // "Aggression" => self.get_option_int::<AggressionOption>(),
             #[cfg(not(target_arch = "wasm32"))]
             "BackgroundPondering" => self.get_option_bool::<BackgroundPonderingOption>(),
             #[cfg(not(target_arch = "wasm32"))]
@@ -196,7 +196,7 @@ impl<W: Write> UhpServer<W> {
     fn options(&mut self, args: &str) -> Result<()> {
         let tokens = args.split(' ').collect::<Vec<_>>();
         if args.is_empty() {
-            self.get_option_int::<AggressionOption>()?;
+            // self.get_option_int::<AggressionOption>()?;
             #[cfg(not(target_arch = "wasm32"))]
             self.get_option_bool::<BackgroundPonderingOption>()?;
             #[cfg(not(target_arch = "wasm32"))]
@@ -208,7 +208,7 @@ impl<W: Write> UhpServer<W> {
             self.get_option(tokens[1])?;
         } else if tokens.len() == 3 && tokens[0] == "set" {
             match tokens[1] {
-                "Aggression" => self.set_option_int::<AggressionOption>(tokens[2])?,
+                // "Aggression" => self.set_option_int::<AggressionOption>(tokens[2])?,
                 #[cfg(not(target_arch = "wasm32"))]
                 "BackgroundPondering" => {
                     self.set_option_bool::<BackgroundPonderingOption>(tokens[2])?
@@ -320,24 +320,25 @@ impl UhpOptionInt for NumThreadsOption {
     }
 }
 
-struct AggressionOption {}
-impl UhpOptionInt for AggressionOption {
-    fn name() -> &'static str {
-        "Aggression"
-    }
-    fn current(config: &PlayerConfig) -> Result<usize> {
-        Ok(config.eval.aggression().into())
-    }
-    fn min() -> usize {
-        1
-    }
-    fn max() -> usize {
-        5
-    }
-    fn set(value: usize, config: &mut PlayerConfig) {
-        config.eval = BasicEvaluator::new(value as u8);
-    }
-}
+//TODO: aggression to remove
+// struct AggressionOption {}
+// impl UhpOptionInt for AggressionOption {
+//     fn name() -> &'static str {
+//         "Aggression"
+//     }
+//     fn current(config: &PlayerConfig) -> Result<usize> {
+//         Ok(config.eval.aggression().into())
+//     }
+//     fn min() -> usize {
+//         1
+//     }
+//     fn max() -> usize {
+//         5
+//     }
+//     fn set(value: usize, config: &mut PlayerConfig) {
+//         config.eval = BasicEvaluator::new(value as u8);
+//     }
+// }
 
 struct TableSizeOption {}
 impl UhpOptionInt for TableSizeOption {
