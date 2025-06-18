@@ -16,15 +16,12 @@ impl Evaluator for DumbEvaluator {
     }
 }
 
-// An evaluator that counts movable pieces and how close to death the queen is.
+// An evaluator that uses come basic heuristics to evaluate the board state.
 #[derive(Copy, Clone)]
 pub struct BasicEvaluator {
-    // aggression: Evaluation,
     queen_liberty_penalty: Evaluation,
     gates_factor: Evaluation,
     queen_spawn_factor: Evaluation,
-    // movable_queen_value: Evaluation,
-    // movable_bug_factor: Evaluation,
     unplayed_bug_factor: Evaluation,
     // Bonus for defensive pillbug or placeability thereof.
     pillbug_defense_bonus: Evaluation,
@@ -32,9 +29,9 @@ pub struct BasicEvaluator {
     queen_score: Evaluation,
     ant_score: Evaluation,
     beetle_score: Evaluation,
-    grasshopper_score: Evaluation, //2, 4 with the strong gate check
+    grasshopper_score: Evaluation,
     spider_score: Evaluation,
-    mosquito_score: Evaluation, // See below.
+    mosquito_score: Evaluation,
     ladybug_score: Evaluation,
     pillbug_score: Evaluation,
     mosquito_incremental_score: Evaluation,
@@ -59,31 +56,14 @@ pub struct BasicEvaluator {
 //    - Is there a placeable position next to queen with a pillbug available?
 
 impl BasicEvaluator {
-    // pub(crate) fn new(aggression: u8) -> Self {
     pub(crate) fn new() -> Self {
-        // Ensure aggression is a dial between 1 and 5.
-        // let mut aggression = aggression.clamp(1, 5) as Evaluation;
-        // aggression = 5;
         Self {
-            // aggression,
-            queen_liberty_penalty: 200, //aggression * 10,
-            ///////////////////////////////////////////
-            //v0.1.1, v0.1.1.1 with check on grasshopper and ladybug
-            gates_factor: 10, //NEED TO FIND THE RIGHT VALUE, value winning against nokamute: 4
-            ///////////////////////////////////////////
-            //v0.1.3.. not good
-            queen_spawn_factor: 40, //aggression * 2
-            ///////////////////////////////////////////
-            //movable_queen_value: 1, //aggression*4
-            // movable_bug_factor: 2, //2
-            ///////////////////////////////////////////
-            //v0.1.2 we have added the spawn flag for unplayed bugs
-            unplayed_bug_factor: 1, //1
-            ///////////////////////////////////////////
-            pillbug_defense_bonus: 40, //aggression * 40
-            ///////////////////////////////////////////
-            //v0.1.4 ant game
-            ant_game_factor: 25, //aggression * 10
+            queen_liberty_penalty: 200,
+            gates_factor: 10,
+            queen_spawn_factor: 40,
+            unplayed_bug_factor: 1,
+            pillbug_defense_bonus: 40,
+            ant_game_factor: 25,
             queen_score: 3,
             ant_score: 7,
             beetle_score: 6,
@@ -208,20 +188,16 @@ impl BasicEvaluator {
         self
     }
 
-    // pub(crate) fn aggression(&self) -> u8 {
-    //     self.aggression as u8
-    // }
-
     fn value(&self, bug: Bug) -> Evaluation {
         // Mostly made up. All I know is that ants are good.
         match bug {
-            Bug::Queen => self.queen_score, //self.movable_queen_value
+            Bug::Queen => self.queen_score,
             Bug::Ant => self.ant_score,
             Bug::Beetle => self.beetle_score,
-            Bug::Grasshopper => self.grasshopper_score, //2, 4 with the strong gate check
+            Bug::Grasshopper => self.grasshopper_score,
             Bug::Spider => self.spider_score,
-            Bug::Mosquito => self.mosquito_score, // See below.
-            Bug::Ladybug => self.ladybug_score,   //6
+            Bug::Mosquito => self.mosquito_score,
+            Bug::Ladybug => self.ladybug_score,
             Bug::Pillbug => self.pillbug_score,
         }
     }
@@ -229,7 +205,6 @@ impl BasicEvaluator {
 
 impl Default for BasicEvaluator {
     fn default() -> Self {
-        // Self::new(3)
         Self::new()
     }
 }
@@ -336,11 +311,6 @@ impl Evaluator for BasicEvaluator {
                 if !immovable.get(hex) {
                     can_pin_beetle[node.color() as usize] = true;
                 }
-                //put score to 0 if it's initial turns
-                // if initial_turns {
-                //     bug_score = 0;
-                // }
-                // Count the number of ants for each player.
                 if node.color() == board.to_move() {
                     ant += 1;
                 } else {
@@ -433,12 +403,6 @@ impl Evaluator for BasicEvaluator {
             //bug_score *= self.movable_bug_factor;
             if node.color() != board.to_move() {
                 bug_score = -bug_score;
-                // Make low-aggression mode value opponent movability higher than ours.
-                // if self.aggression == 1 {
-                //     bug_score *= 2
-                // } else if self.aggression == 2 {
-                //     bug_score = bug_score * 3 / 2;
-                // }
             }
             score += bug_score;
         }
