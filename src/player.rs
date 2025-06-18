@@ -73,7 +73,12 @@ fn get_player(name: &str, config: &PlayerConfig) -> Box<dyn Player> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_game(
-    config: PlayerConfig, game_type: &str, name1: &str, name2: &str, depth: Option<u8>,
+    //TODO: should support double config
+    config: PlayerConfig,
+    game_type: &str,
+    name1: &str,
+    name2: &str,
+    depth: Option<u8>,
     timeout: Option<String>,
 ) {
     let mut player1 = get_player(name1, &config);
@@ -187,12 +192,14 @@ fn exit(msg: String) -> ! {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone)]
 pub(crate) enum PlayerStrategy {
     Iterative(ParallelOptions),
     Random,
     Mcts(MCTSOptions),
 }
 
+#[derive(Clone)]
 pub struct PlayerConfig {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) num_threads: Option<usize>,
@@ -229,6 +236,93 @@ pub fn configure_player() -> Result<(PlayerConfig, Vec<String>), pico_args::Erro
     }
     if args.contains("--quiet-search") {
         config.opts = config.opts.with_quiescence_search_depth(2);
+    }
+
+    let eval_string: Option<String> = args.opt_value_from_str("--set-eval")?;
+    if let Some(eval_string) = eval_string {
+        let mut evaluator = BasicEvaluator::new();
+
+        for param_pair in eval_string.split(',') {
+            let parts: Vec<&str> = param_pair.trim().split(':').collect();
+            if parts.len() != 2 {
+                exit(format!("Invalid parameter format in --set-eval: {}", param_pair));
+            }
+
+            let param_name = parts[0].trim();
+            let param_value = parts[1].trim().parse::<Evaluation>().unwrap_or_else(|_| {
+                exit(format!("Could not parse value for parameter {}: {}", param_name, parts[1]))
+            });
+
+            // Apply the appropriate setter based on parameter name
+            match param_name {
+                "queen_liberty_penalty" => {
+                    evaluator.queen_liberty_penalty(param_value);
+                }
+                "gates_factor" => {
+                    evaluator.gates_factor(param_value);
+                }
+                "queen_spawn_factor" => {
+                    evaluator.queen_spawn_factor(param_value);
+                }
+                "unplayed_bug_factor" => {
+                    evaluator.unplayed_bug_factor(param_value);
+                }
+                "pillbug_defense_bonus" => {
+                    evaluator.pillbug_defense_bonus(param_value);
+                }
+                "ant_game_factor" => {
+                    evaluator.ant_game_factor(param_value);
+                }
+                "queen_score" => {
+                    evaluator.queen_score(param_value);
+                }
+                "ant_score" => {
+                    evaluator.ant_score(param_value);
+                }
+                "beetle_score" => {
+                    evaluator.beetle_score(param_value);
+                }
+                "grasshopper_score" => {
+                    evaluator.grasshopper_score(param_value);
+                }
+                "spider_score" => {
+                    evaluator.spider_score(param_value);
+                }
+                "mosquito_score" => {
+                    evaluator.mosquito_score(param_value);
+                }
+                "ladybug_score" => {
+                    evaluator.ladybug_score(param_value);
+                }
+                "pillbug_score" => {
+                    evaluator.pillbug_score(param_value);
+                }
+                "mosquito_incremental_score" => {
+                    evaluator.mosquito_incremental_score(param_value);
+                }
+                "stacked_bug_factor" => {
+                    evaluator.stacked_bug_factor(param_value);
+                }
+                "queen_movable_penalty_factor" => {
+                    evaluator.queen_movable_penalty_factor(param_value);
+                }
+                "opponent_queen_liberty_penalty_factor" => {
+                    evaluator.opponent_queen_liberty_penalty_factor(param_value);
+                }
+                "trap_queen_penalty" => {
+                    evaluator.trap_queen_penalty(param_value);
+                }
+                "placeable_pillbug_defense_bonus" => {
+                    evaluator.placeable_pillbug_defense_bonus(param_value);
+                }
+                "pinnable_beetle_factor" => {
+                    evaluator.pinnable_beetle_factor(param_value);
+                }
+                _ => exit(format!("Unknown parameter in --set-eval: {}", param_name)),
+            };
+        }
+
+        config.eval = evaluator;
     }
 
     // 0 for num_cpu threads; >0 for specific count.

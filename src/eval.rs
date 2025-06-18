@@ -20,7 +20,7 @@ impl Evaluator for DumbEvaluator {
 #[derive(Copy, Clone)]
 pub struct BasicEvaluator {
     // aggression: Evaluation,
-    queen_liberty_factor: Evaluation,
+    queen_liberty_penalty: Evaluation,
     gates_factor: Evaluation,
     queen_spawn_factor: Evaluation,
     // movable_queen_value: Evaluation,
@@ -29,6 +29,21 @@ pub struct BasicEvaluator {
     // Bonus for defensive pillbug or placeability thereof.
     pillbug_defense_bonus: Evaluation,
     ant_game_factor: Evaluation,
+    queen_score: Evaluation,
+    ant_score: Evaluation,
+    beetle_score: Evaluation,
+    grasshopper_score: Evaluation, //2, 4 with the strong gate check
+    spider_score: Evaluation,
+    mosquito_score: Evaluation, // See below.
+    ladybug_score: Evaluation,
+    pillbug_score: Evaluation,
+    mosquito_incremental_score: Evaluation,
+    stacked_bug_factor: Evaluation,
+    queen_movable_penalty_factor: Evaluation,
+    opponent_queen_liberty_penalty_factor: Evaluation,
+    trap_queen_penalty: Evaluation,
+    placeable_pillbug_defense_bonus: Evaluation,
+    pinnable_beetle_factor: Evaluation,
 }
 
 // Ideas:
@@ -51,7 +66,7 @@ impl BasicEvaluator {
         // aggression = 5;
         Self {
             // aggression,
-            queen_liberty_factor: 200, //aggression * 10,
+            queen_liberty_penalty: 200, //aggression * 10,
             ///////////////////////////////////////////
             //v0.1.1, v0.1.1.1 with check on grasshopper and ladybug
             gates_factor: 10, //NEED TO FIND THE RIGHT VALUE, value winning against nokamute: 4
@@ -69,8 +84,128 @@ impl BasicEvaluator {
             ///////////////////////////////////////////
             //v0.1.4 ant game
             ant_game_factor: 25, //aggression * 10
-                                 ///////////////////////////////////////////
+            queen_score: 3,
+            ant_score: 7,
+            beetle_score: 6,
+            grasshopper_score: 3,
+            spider_score: 2,
+            mosquito_score: 8,
+            ladybug_score: 4,
+            pillbug_score: 5,
+            mosquito_incremental_score: 2,
+            stacked_bug_factor: 4,
+            queen_movable_penalty_factor: 2,
+            opponent_queen_liberty_penalty_factor: 2,
+            trap_queen_penalty: 200,
+            placeable_pillbug_defense_bonus: 20,
+            pinnable_beetle_factor: 8,
         }
+    }
+
+    // Setter methods for each attribute
+    pub fn queen_liberty_penalty(&mut self, value: Evaluation) -> &mut Self {
+        self.queen_liberty_penalty = value;
+        self
+    }
+
+    pub fn gates_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.gates_factor = value;
+        self
+    }
+
+    pub fn queen_spawn_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.queen_spawn_factor = value;
+        self
+    }
+
+    pub fn unplayed_bug_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.unplayed_bug_factor = value;
+        self
+    }
+
+    pub fn pillbug_defense_bonus(&mut self, value: Evaluation) -> &mut Self {
+        self.pillbug_defense_bonus = value;
+        self
+    }
+
+    pub fn ant_game_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.ant_game_factor = value;
+        self
+    }
+
+    pub fn queen_score(&mut self, value: Evaluation) -> &mut Self {
+        self.queen_score = value;
+        self
+    }
+
+    pub fn ant_score(&mut self, value: Evaluation) -> &mut Self {
+        self.ant_score = value;
+        self
+    }
+
+    pub fn beetle_score(&mut self, value: Evaluation) -> &mut Self {
+        self.beetle_score = value;
+        self
+    }
+
+    pub fn grasshopper_score(&mut self, value: Evaluation) -> &mut Self {
+        self.grasshopper_score = value;
+        self
+    }
+
+    pub fn spider_score(&mut self, value: Evaluation) -> &mut Self {
+        self.spider_score = value;
+        self
+    }
+
+    pub fn mosquito_score(&mut self, value: Evaluation) -> &mut Self {
+        self.mosquito_score = value;
+        self
+    }
+
+    pub fn ladybug_score(&mut self, value: Evaluation) -> &mut Self {
+        self.ladybug_score = value;
+        self
+    }
+
+    pub fn pillbug_score(&mut self, value: Evaluation) -> &mut Self {
+        self.pillbug_score = value;
+        self
+    }
+
+    pub fn mosquito_incremental_score(&mut self, value: Evaluation) -> &mut Self {
+        self.mosquito_incremental_score = value;
+        self
+    }
+
+    pub fn stacked_bug_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.stacked_bug_factor = value;
+        self
+    }
+
+    pub fn queen_movable_penalty_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.queen_movable_penalty_factor = value;
+        self
+    }
+
+    pub fn opponent_queen_liberty_penalty_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.opponent_queen_liberty_penalty_factor = value;
+        self
+    }
+
+    pub fn trap_queen_penalty(&mut self, value: Evaluation) -> &mut Self {
+        self.trap_queen_penalty = value;
+        self
+    }
+
+    pub fn placeable_pillbug_defense_bonus(&mut self, value: Evaluation) -> &mut Self {
+        self.placeable_pillbug_defense_bonus = value;
+        self
+    }
+
+    pub fn pinnable_beetle_factor(&mut self, value: Evaluation) -> &mut Self {
+        self.pinnable_beetle_factor = value;
+        self
     }
 
     // pub(crate) fn aggression(&self) -> u8 {
@@ -78,17 +213,16 @@ impl BasicEvaluator {
     // }
 
     fn value(&self, bug: Bug) -> Evaluation {
-        //PAR
         // Mostly made up. All I know is that ants are good.
         match bug {
-            Bug::Queen => 3, //self.movable_queen_value
-            Bug::Ant => 7,
-            Bug::Beetle => 6,
-            Bug::Grasshopper => 3, //2, 4 with the strong gate check
-            Bug::Spider => 2,
-            Bug::Mosquito => 8, // See below.
-            Bug::Ladybug => 4,  //6
-            Bug::Pillbug => 5,
+            Bug::Queen => self.queen_score, //self.movable_queen_value
+            Bug::Ant => self.ant_score,
+            Bug::Beetle => self.beetle_score,
+            Bug::Grasshopper => self.grasshopper_score, //2, 4 with the strong gate check
+            Bug::Spider => self.spider_score,
+            Bug::Mosquito => self.mosquito_score, // See below.
+            Bug::Ladybug => self.ladybug_score,   //6
+            Bug::Pillbug => self.pillbug_score,
         }
     }
 }
@@ -195,7 +329,7 @@ impl Evaluator for BasicEvaluator {
                             }
                         }
                     }
-                    bug_score += 2; //Can we improve this estimate? PAR
+                    bug_score += self.mosquito_incremental_score;
                 }
             };
             if node.bug() == Bug::Ant || mosquito_ant {
@@ -222,7 +356,7 @@ impl Evaluator for BasicEvaluator {
             }
 
             if node.is_stacked() {
-                bug_score *= 4; //It was 2 PAR
+                bug_score *= self.stacked_bug_factor;
             }
 
             let friendly_queen = board.queens[node.color() as usize];
@@ -232,12 +366,12 @@ impl Evaluator for BasicEvaluator {
             if adjacent(friendly_queen).contains(&hex) {
                 // Filling friendly queen's liberty.
                 if immovable.get(hex) && !node.is_stacked() {
-                    queen_score[node.color() as usize] -= self.queen_liberty_factor;
-                //PAR
+                    queen_score[node.color() as usize] -= self.queen_liberty_penalty;
                 } else {
                     // Lower penalty for being able to leave.
-                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 2;
-                    //PAR
+                    queen_score[node.color() as usize] -=
+                        self.queen_liberty_penalty / self.queen_movable_penalty_factor;
+                    //TODO: /2 in 0.5
                 }
                 if pillbug_powers
                     && board.node(friendly_queen).clipped_height() == 1
@@ -256,7 +390,6 @@ impl Evaluator for BasicEvaluator {
                         .unwrap_or(0);
                     // maybe also best escape == 1 or 2 can be a good idea
                     if best_escape > 2 {
-                        //PAR
                         pillbug_defense[node.color() as usize] = true;
                     }
                 }
@@ -268,7 +401,8 @@ impl Evaluator for BasicEvaluator {
                 // Discourage liberty filling by valuable bugs, by setting their score to zero when filling a liberty.
                 bug_score = 0;
                 // A little extra boost for filling opponent's queen, as we will never choose to move.
-                queen_score[node.color().other() as usize] -= self.queen_liberty_factor * 2; //original: * 12 / 10 PAR
+                queen_score[node.color().other() as usize] -=
+                    self.queen_liberty_penalty * self.opponent_queen_liberty_penalty_factor;
                 if pillbug_powers
                     && board.node(enemy_queen).clipped_height() == 1
                     && !immovable.get(enemy_queen)
@@ -285,7 +419,7 @@ impl Evaluator for BasicEvaluator {
                         .min()
                         .unwrap_or(6);
                     if best_unescape < 3 {
-                        queen_score[node.color().other() as usize] = -self.queen_liberty_factor;
+                        queen_score[node.color().other() as usize] -= self.trap_queen_penalty;
                     }
                 }
             }
@@ -334,7 +468,7 @@ impl Evaluator for BasicEvaluator {
                 pillbug_defense[color as usize] = true;
             }
         }
-        pillbug_defense_score += self.pillbug_defense_bonus / 2 //PAR
+        pillbug_defense_score += self.placeable_pillbug_defense_bonus
             * (pillbug_defense[board.to_move() as usize] as Evaluation
                 - pillbug_defense[board.to_move().other() as usize] as Evaluation);
 
@@ -356,14 +490,14 @@ impl Evaluator for BasicEvaluator {
         if board.remaining[board.to_move() as usize][Bug::Beetle as usize] > 0 {
             queen_spawn_score = count_queen_spawn_points(board, board.to_move());
             if can_pin_beetle[board.to_move().other() as usize] {
-                queen_spawn_score /= 8; //PAR
+                queen_spawn_score /= self.pinnable_beetle_factor;
             }
         }
         let mut queen_spawn_score_opponent = 0;
         if board.remaining[board.to_move().other() as usize][Bug::Beetle as usize] > 0 {
             queen_spawn_score_opponent = count_queen_spawn_points(board, board.to_move().other());
             if can_pin_beetle[board.to_move() as usize] {
-                queen_spawn_score_opponent /= 8; //PAR
+                queen_spawn_score_opponent /= self.pinnable_beetle_factor;
             }
         }
 
