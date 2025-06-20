@@ -17,7 +17,6 @@ GENERATIONS = 100
 NUM_GAMES = 1
 
 starting_individual = np.array([200, 10, 40, 1, 40, 25, 3, 7, 6, 3, 2, 8, 4, 5, 2, 4, 2, 2, 200, 20, 8])
-
 # Game settings
 MAX_TURNS = 50
 TIME_TOTAL_SEC = 1
@@ -25,6 +24,7 @@ TIME_H = TIME_TOTAL_SEC // 3600
 TIME_M = TIME_TOTAL_SEC // 60
 TIME_S = TIME_TOTAL_SEC % 60
 OK = "ok\n"
+DEPTH = 0 #2  # Depth for the game engine
 
 # -------------------------------
 # UTILS
@@ -96,7 +96,10 @@ def end_process(p: subprocess.Popen) -> None:
     p.kill()
 
 def play_step(p1: subprocess.Popen, p2: subprocess.Popen) -> str:
-    move = send(p1, f"bestmove time {TIME_H:02}:{TIME_M:02}:{TIME_S:02}")
+    if DEPTH > 0:
+        move = send(p1, f"bestmove depth {DEPTH}")
+    else:
+        move = send(p1, f"bestmove time {TIME_H:02}:{TIME_M:02}:{TIME_S:02}")
     move = move.strip().split("\n")[0]
     #print(f"[Player] plays: {move}")
     send(p1, f"play {move}")
@@ -208,7 +211,7 @@ def play_game(params_a, params_b) -> int:
 # GENETIC INDIVIDUAL
 # -------------------------------
 class Individual:
-    def __init__(self, batch_id=0, params=None):
+    def __init__(self, batch_id=0, params=None, individual_id=None):
         # Generate random parameters between 1 and 500 if none provided
         if params is None:
             self.params = np.random.uniform(1, 500, NUM_PARAMS)
@@ -216,6 +219,7 @@ class Individual:
             self.params = params
         self.batch_id = batch_id
         self.fitness = 0
+        self.individual_id = individual_id
 
     def mutate(self, mutation_percent):
         mutation_scale = mutation_percent / 100.0  # Convert percentage to scale factor
@@ -230,9 +234,10 @@ class Individual:
                 param_scale = 0.1
             # Apply random mutation within the range
             mutated_params[i] += np.random.uniform(-param_scale, param_scale)
-
+            # Ensure parameters are bigger than 1
+            mutated_params[i] = max(mutated_params[i], 1)
         # Return a new individual with the mutated parameters
-        return Individual(self.batch_id, mutated_params)
+        return Individual(self.batch_id, mutated_params, self.individual_id)
 
 # -------------------------------
 # FITNESS EVALUATION
@@ -247,22 +252,30 @@ def evaluate_population(population: List[Individual], threads: int):
             results = pool.starmap(play_match, [(population[a], population[b]) for a, b in jobs])
     else:
         results = [play_match(population[a], population[b]) for a, b in jobs]
-    
+
     # Update fitness based on results
     for match_result in results:
         for (winner, loser, white, draw) in match_result: #maybe refactoring
+            winner_idx = winner.individual_id
+            loser_idx = loser.individual_id
             if draw:
                 if winner == white:
-                    winner.fitness += 0.4
-                    loser.fitness += 0.6
+                    if winner_idx is not None:
+                        population[winner_idx].fitness += 0.4
+                    if loser_idx is not None:
+                        population[loser_idx].fitness += 0.6
                 else:
-                    winner.fitness += 0.6
-                    loser.fitness += 0.4
+                    if winner_idx is not None:
+                        population[winner_idx].fitness += 0.6
+                    if loser_idx is not None:
+                        population[loser_idx].fitness += 0.4
             else:
                 if winner == white:
-                    winner.fitness += 0.4 * 3
+                    if winner_idx is not None:
+                        population[winner_idx].fitness += 0.4 * 3
                 else:
-                    winner.fitness += 0.6 * 3
+                    if winner_idx is not None:
+                        population[winner_idx].fitness += 0.6 * 3
         
 
 
@@ -316,6 +329,9 @@ def evolve_population(population: List[Individual]) -> List[Individual]:
     for i in range(POPULATION_SIZE // batch_size):
         for j in range(batch_size):
             new_population[i * batch_size + j].batch_id = i
+
+    for i in range(POPULATION_SIZE):
+        new_population[i].individual_id = i
                 
     for p in new_population:
         p.fitness = 0
@@ -344,13 +360,14 @@ def crossover(params_a, params_b):
     return child_params
 
 def train(threads: int):
-    population = [Individual(params=starting_individual)]
-    for _ in range(1,6):
-        population.append(Individual(params=starting_individual).mutate(50))
-    for _ in range(6, POPULATION_SIZE-6):
-        population.append(Individual(params=starting_individual).mutate(100))
-    for _ in range(6):
-        population.append(Individual())
+    population = [Individual(params=starting_individual, individual_id=0)]
+    for k in range(1,6):
+        population.append(Individual(batch_id=0, params=starting_individual, individual_id=k).mutate(50))
+    for k in range(6, POPULATION_SIZE-6):
+        population.append(Individual(batch_id=k//6, params=starting_individual, individual_id=k).mutate(100))
+    for k in range(6):
+        population.append(Individual(batch_id=4, individual_id=k+POPULATION_SIZE-6))
+
 
     for gen in range(GENERATIONS):
         print(f"\nGeneration {gen}")
