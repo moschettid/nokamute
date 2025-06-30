@@ -51,7 +51,8 @@ fn main() {
                 .opt_value_from_str("--game-type")
                 .unwrap()
                 .unwrap_or_else(|| "Base+MLP".to_owned());
-            let depth: Option<u8> = args.opt_value_from_str("--depth").unwrap();
+            // let depth: Option<u8> = args.opt_value_from_str("--depth").unwrap();
+            let depth = Some(4);
             let timeout: Option<String> = args.opt_value_from_str("--timeout").unwrap();
             let args =
                 args.finish().into_iter().map(|s| s.into_string().unwrap()).collect::<Vec<_>>();

@@ -326,15 +326,18 @@ pub fn configure_player() -> Result<(PlayerConfig, Vec<String>), pico_args::Erro
     }
 
     // 0 for num_cpu threads; >0 for specific count.
-    config.num_threads = args.opt_value_from_str("--num-threads")?.map(|thread_arg: String| {
-        if thread_arg == "max" || thread_arg == "all" {
-            0
-        } else if let Ok(num) = thread_arg.parse::<usize>() {
-            num
-        } else {
-            exit(format!("Could not parse num_threads={}. Expected int or 'max'", thread_arg));
-        }
-    });
+    // Always use 1 thread for num_threads.
+    config.num_threads = Some(1);
+    // Previous code for parsing --num-threads:
+    // config.num_threads = args.opt_value_from_str("--num-threads")?.map(|thread_arg: String| {
+    //     if thread_arg == "max" || thread_arg == "all" {
+    //         0
+    //     } else if let Ok(num) = thread_arg.parse::<usize>() {
+    //         num
+    //     } else {
+    //         exit(format!("Could not parse num_threads={}. Expected int or 'max'", thread_arg));
+    //     }
+    // });
 
     // Configure specific strategy.
     let strategy: Option<String> = args.opt_value_from_str("--strategy")?;
