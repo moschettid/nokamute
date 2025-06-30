@@ -14,7 +14,7 @@ ELITISM = 6
 TOURNAMENT_OPPONENTS = 5
 
 GENERATIONS = 100
-NUM_GAMES = 1
+NUM_GAMES = 2
 
 starting_individual = np.array([200, 10, 40, 1, 40, 25, 3, 7, 6, 3, 2, 8, 4, 5, 2, 4, 2, 2, 200, 20, 8])
 # Game settings
@@ -24,7 +24,7 @@ TIME_H = TIME_TOTAL_SEC // 3600
 TIME_M = TIME_TOTAL_SEC // 60
 TIME_S = TIME_TOTAL_SEC % 60
 OK = "ok\n"
-DEPTH = 0 #2  # Depth for the game engine
+DEPTH = 4 #2  # Depth for the game engine
 
 # -------------------------------
 # UTILS
@@ -138,7 +138,7 @@ def start_game(prompt_a, prompt_b) -> str:
     send(player2, "exit")
     end_process(player1)
     end_process(player2)
-    print("Game over.")
+    # print("Game over.")
     print(f"Game result: {info[1]}")
     
     
