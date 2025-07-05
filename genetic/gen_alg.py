@@ -7,6 +7,11 @@ from multiprocessing import Pool, cpu_count
 import subprocess
 from datetime import datetime
 
+#TO DO: 
+# - use float instead of int for params
+# - make individual play with std nokamute engine for a couple of games
+
+
 # PROBLEMS: 
 # - first batch wins with many points more than others, and it stays so for ever
 # - first gen it happens something, from second one no more
@@ -242,7 +247,7 @@ class Individual:
             # Ensure parameters are bigger than 1
             mutated_params[i] = max(mutated_params[i], 1)
         # Return a new individual with the mutated parameters
-        return Individual(self.batch_id, mutated_params, self.individual_id)
+        return Individual(batch_id=self.batch_id, params=mutated_params, individual_id=self.individual_id)
 
 # -------------------------------
 # FITNESS EVALUATION
