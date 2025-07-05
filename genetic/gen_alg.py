@@ -7,6 +7,11 @@ from multiprocessing import Pool, cpu_count
 import subprocess
 from datetime import datetime
 
+# PROBLEMS: 
+# - first batch wins with many points more than others, and it stays so for ever
+# - first gen it happens something, from second one no more
+# PROBABLE CAUSES: fitness, wrong matches, job creation, 1st-2nd gen not fitness reset
+
 # CONFIG
 NUM_PARAMS = 21
 POPULATION_SIZE = 30
@@ -14,11 +19,11 @@ ELITISM = 6
 TOURNAMENT_OPPONENTS = 5
 
 GENERATIONS = 100
-NUM_GAMES = 2
+NUM_GAMES = 2 #2
 
 starting_individual = np.array([200, 10, 40, 1, 40, 25, 3, 7, 6, 3, 2, 8, 4, 5, 2, 4, 2, 2, 200, 20, 8])
 # Game settings
-MAX_TURNS = 50
+MAX_TURNS = 100
 TIME_TOTAL_SEC = 1
 TIME_H = TIME_TOTAL_SEC // 3600
 TIME_M = TIME_TOTAL_SEC // 60
@@ -109,7 +114,7 @@ def check_end_game(out: str) -> bool:
     return "InProgress" != out.split(";")[1]
 
 def start_game(prompt_a, prompt_b) -> str:
-    MAX_TURNS = 100
+    # MAX_TURNS = 100
     path = "./nokamute"
     
     #print(f"Starting interaction with {path}...")
@@ -163,9 +168,9 @@ def play_match(ind_a: 'Individual', ind_b: 'Individual') -> List[tuple]: #REFACT
     results = []
     # Play multiple games to get a more reliable result
     for _ in range(NUM_GAMES):
-        result = play_game(params_a, params_b)
+        result = play_game(params_a, params_b) #Return: 1 if A wins, -1 if B wins, 0 for draw
         if result == 0:
-            results.append((ind_a, ind_b, ind_a, True))
+            results.append((ind_a, ind_b, ind_a, True)) #winner, loser, white, draw
         elif result == 1:
             results.append((ind_a, ind_b, ind_a, False))
         else:
@@ -259,7 +264,7 @@ def evaluate_population(population: List[Individual], threads: int):
             winner_idx = winner.individual_id
             loser_idx = loser.individual_id
             if draw:
-                if winner == white:
+                if winner.individual_id == white.individual_id:
                     if winner_idx is not None:
                         population[winner_idx].fitness += 0.4
                     if loser_idx is not None:
@@ -270,12 +275,15 @@ def evaluate_population(population: List[Individual], threads: int):
                     if loser_idx is not None:
                         population[loser_idx].fitness += 0.4
             else:
-                if winner == white:
+                if winner.individual_id == white.individual_id:
                     if winner_idx is not None:
                         population[winner_idx].fitness += 0.4 * 3
                 else:
                     if winner_idx is not None:
                         population[winner_idx].fitness += 0.6 * 3
+            #check if winner_idx and loser_idx are in 1,2,3,4,5,6
+            if winner_idx < 6 or loser_idx < 6:
+                print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
         
 
 
@@ -291,13 +299,12 @@ def evolve_population(population: List[Individual]) -> List[Individual]:
     batch_size = ELITISM
     new_population = population[:batch_size]
 
-
     # Crossover of elite individuals
     for _ in range(batch_size):
         parent1, parent2 = random.sample(new_population[:ELITISM], 2) # We could switch to refined version with probability proportional to fitness
         child_params = crossover(parent1.params, parent2.params)
         # Slight mutation
-        child = Individual(child_params).mutate(5)
+        child = Individual(params=child_params).mutate(5)
         new_population.append(child)
     
     # Crossover of elite with non-elite individuals
@@ -306,7 +313,7 @@ def evolve_population(population: List[Individual]) -> List[Individual]:
         parent2 = random.choice(population[ELITISM:2*ELITISM])
         child_params = crossover(parent1.params, parent2.params)
         # Slight mutation
-        child = Individual(child_params).mutate(8)
+        child = Individual(params=child_params).mutate(8)
         new_population.append(child)
     
     # Crossover of two random individuals from the first 24
@@ -314,12 +321,12 @@ def evolve_population(population: List[Individual]) -> List[Individual]:
         parent1, parent2 = random.sample(population[:24], 2)
         child_params = crossover(parent1.params, parent2.params)
         # Medium mutation
-        child = Individual(child_params).mutate(12)
+        child = Individual(params=child_params).mutate(12)
         new_population.append(child)
     
     # Random mutations of elite individuals
     for i in range(batch_size):
-        child = Individual(population[i].params).mutate(40)  # Strong mutation
+        child = Individual(params=population[i].params).mutate(40)  # Strong mutation
         new_population.append(child)
 
     while len(new_population) < POPULATION_SIZE:
