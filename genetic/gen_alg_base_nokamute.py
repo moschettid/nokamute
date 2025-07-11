@@ -31,7 +31,7 @@ ELITISM = 6
 TOURNAMENT_OPPONENTS = 5
 
 GENERATIONS = 100
-NUM_GAMES = 2 #2
+NUM_GAMES = 5 #2
 
 starting_individual = np.array([200, 10, 40, 1, 40, 25, 3, 7, 6, 3, 2, 8, 4, 5, 2, 4, 2, 2, 200, 20, 8])
 # Game settings
@@ -127,13 +127,19 @@ def check_end_game(out: str) -> bool:
 
 def start_game(prompt_a, prompt_b) -> str:
     # MAX_TURNS = 100
-    path = "./nokamute"
+    path = "./nokamute_opening"
+    path_base = "./nokamute1.0"
     
     #print(f"Starting interaction with {path}...")
-    player1 = start_process(path, ["--set-eval", prompt_a, "--num-threads=1"])
+    if prompt_a is not None:
+        player1 = start_process(path, ["--set-eval", prompt_a])#"--num-threads=1" now hardcoded in the engine
+    else:
+        player1 = start_process(path_base, ["--num-threads=1"])
     read_all(player1)
-    #print(f"Starting interaction with {path}...")
-    player2 = start_process(path, ["--set-eval", prompt_b, "--num-threads=1"])
+    if prompt_b is not None:
+        player2 = start_process(path, ["--set-eval", prompt_b])#"--num-threads=1" now hardcoded in the engine
+    else:
+        player2 = start_process(path_base, ["--num-threads=1"])    
     read_all(player2)
 
     send(player1, "newgame Base+MLP")
@@ -175,7 +181,7 @@ def play_match(ind_a: 'Individual', ind_b: 'Individual') -> List[tuple]: #REFACT
     Return: List of tuples (winner, loser, white, draw)
     """
     params_a = ind_a.params
-    params_b = ind_b.params
+    params_b = None
 
     results = []
     # Play multiple games to get a more reliable result
@@ -196,7 +202,7 @@ def play_match(ind_a: 'Individual', ind_b: 'Individual') -> List[tuple]: #REFACT
         else:
             results.append((ind_a, ind_b, ind_b, False))
 
-    print(f"Match between {ind_a.batch_id} and {ind_b.batch_id} finished")
+    print(f"Match between {ind_a.individual_id} and base nokamute finished")
     return results
     
 
@@ -206,13 +212,18 @@ def play_game(params_a, params_b) -> int:
     You MUST replace this with your actual engine logic.
     Return: 1 if A wins, -1 if B wins, 0 for draw
     """
-    params_a = np.round(params_a).astype(int)
-    params_b = np.round(params_b).astype(int)
-
-    prompt_a = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_a))
-    
-
-    prompt_b = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_b))
+    if not params_a is None:
+        params_a = np.round(params_a).astype(int)
+        prompt_a = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_a))
+    else:
+        params_a = None
+        prompt_a = None
+    if not params_b is None:
+        params_b = np.round(params_b).astype(int)
+        prompt_b = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_b))
+    else:
+        params_b = None
+        prompt_b = None
 
     result = start_game(prompt_a, prompt_b)
     if result == "Draw":
@@ -255,7 +266,7 @@ class Individual:
             mutated_params[i] = max(mutated_params[i], 1)
         # Return a new individual with the mutated parameters
         if random_param_sample:
-            # Randomly sample a subset of  5 parameters to generate random
+            # Randomly sample a subset of 1 parameter to generate random
             index = np.random.choice(NUM_PARAMS, 1, replace=False)
             mutated_params[index] = np.random.randint(1, 501)
         return Individual(batch_id=self.batch_id, params=mutated_params, individual_id=self.individual_id)
@@ -266,40 +277,41 @@ class Individual:
 
 def evaluate_population(population: List[Individual], threads: int):
     # Define jobs
-    jobs = generate_jobs(POPULATION_SIZE, 6)
+    # jobs = generate_jobs(POPULATION_SIZE, 6)
+    #We do not need anymore the jobs, we just play matches against base nokamute
+    jobs = []
+    for i in range(POPULATION_SIZE):
+        jobs.append((i, None))
 
     if threads > 1:
         with Pool(threads) as pool:
-            results = pool.starmap(play_match, [(population[a], population[b]) for a, b in jobs])
+            results = pool.starmap(play_match, [(population[a], b) for a, b in jobs])
     else:
-        results = [play_match(population[a], population[b]) for a, b in jobs]
+        results = [play_match(population[a], b) for a, b in jobs]
 
     # Update fitness based on results
     for match_result in results:
         for (winner, loser, white, draw) in match_result: #maybe refactoring
-            winner_idx = winner.individual_id
-            loser_idx = loser.individual_id
+            
+            winner_idx = winner.individual_id if winner is not None else None
+            loser_idx = loser.individual_id if loser is not None else None
+            white_idx = white.individual_id if white is not None else None
             if draw:
-                if winner.individual_id == white.individual_id:
-                    if winner_idx is not None:
+                if winner is not None:
+                    if white is not None:
                         population[winner_idx].fitness += 0.4
-                    if loser_idx is not None:
-                        population[loser_idx].fitness += 0.6
-                else:
-                    if winner_idx is not None:
+                    else:
                         population[winner_idx].fitness += 0.6
-                    if loser_idx is not None:
-                        population[loser_idx].fitness += 0.4
-            else:
-                if winner.individual_id == white.individual_id:
-                    if winner_idx is not None:
-                        population[winner_idx].fitness += 0.4 * 3
                 else:
-                    if winner_idx is not None:
-                        population[winner_idx].fitness += 0.6 * 3
-            #check if winner_idx and loser_idx are in 1,2,3,4,5,6
-            if winner_idx < 6 or loser_idx < 6:
-                print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
+                    if white is not None:
+                        population[loser_idx].fitness += 0.4
+                    else:
+                        population[loser_idx].fitness += 0.6
+            elif winner is not None:
+                if winner_idx == white_idx:
+                    population[winner_idx].fitness += 0.4 * 3
+                else:
+                    population[winner_idx].fitness += 0.6 * 3
         
 
 
