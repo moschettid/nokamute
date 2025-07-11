@@ -9,6 +9,13 @@ use minimax::{Evaluation, Evaluator};
 // An evaluator that knows nothing but the rules, and maximally explores the tree.
 pub struct DumbEvaluator;
 
+// TO DO: 
+// - clone vanilla nokamute and import our modification in a parametrized/annullable way
+// - decimal values for params
+// - add new game mechanincs to the evaluation
+// - REFACTOR
+
+
 impl Evaluator for DumbEvaluator {
     type G = Rules;
     fn evaluate(&self, _: &Board) -> Evaluation {
