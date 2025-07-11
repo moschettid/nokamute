@@ -9,6 +9,19 @@ use crate::uhp_client::UhpPlayer;
 use crate::{nokamute_version, BasicEvaluator, Board, Bug, Rules, Turn};
 use minimax::*;
 use std::time::Duration;
+use crate::loc_to_hex;
+use crate::Color;
+use crate::hex_grid::is_aligned;
+use crate::hex_grid::forms_triangle;
+use rand::seq::SliceRandom;
+
+//TO DO: check if thread and depth are hardcoded or not, look for "HARDCODED" key word
+
+//TO DO:
+// - add a probability distribution to the openings
+// - check if is right to align to 1st and 3rd and not other
+// - check queen position onn opening
+// - try string moves approach
 
 // A player that can play one color's moves.
 pub(crate) trait Player {
@@ -109,6 +122,7 @@ struct NokamutePlayer {
     strategy: Box<dyn Strategy<Rules> + Send>,
     random_opening: bool,
     name: String,
+    actual_opening: Option<(String, Vec<Bug>)>,
 }
 
 impl NokamutePlayer {
@@ -120,7 +134,7 @@ impl NokamutePlayer {
         name: &str, mut strategy: Box<dyn Strategy<Rules> + Send>, random_opening: bool,
     ) -> Self {
         strategy.set_timeout(Duration::from_secs(5));
-        NokamutePlayer { board: Board::default(), strategy, random_opening, name: name.to_owned() }
+        NokamutePlayer { board: Board::default(), strategy, random_opening, name: name.to_owned(), actual_opening: None }
     }
 }
 
@@ -142,32 +156,135 @@ impl Player for NokamutePlayer {
     }
 
     fn generate_move(&mut self) -> Turn {
-        if self.random_opening {
-            // Ignore minimax and just throw out a random jumpy bug for the first move.
-            if self.board.turn_num < 2 {
-                loop {
-                    let turn =
-                        minimax::Random::<Rules>::default().choose_move(&self.board).unwrap();
-                    if let Turn::Place(_, bug) = turn {
-                        if matches!(
-                            bug,
-                            Bug::Beetle | Bug::Grasshopper | Bug::Ladybug | Bug::Pillbug
-                        ) {
-                            return turn;
-                        }
-                    }
-                }
-            } else if self.board.turn_num < 4 {
-                loop {
-                    let turn =
-                        minimax::Random::<Rules>::default().choose_move(&self.board).unwrap();
-                    if let Turn::Place(_, bug) = turn {
-                        if bug == Bug::Queen {
-                            return turn;
-                        }
-                    }
-                }
+        //Hardcoded Antispawn opening
+        //I want to hardcode the first 3 moves as Ladybug, Queen, Pillbug
+        // if self.board.turn_num < 2 {
+        //     //if it's white
+        //     if self.board.to_move() == Color::White {
+        //         // If it's the first move, place a Ladybug
+        //         return Turn::Place(loc_to_hex((0, 0)), Bug::Ladybug);
+        //     }else {
+        //         // If it's the first move, place a Beetle
+        //         return Turn::Place(loc_to_hex((0, 1)), Bug::Ladybug);
+        //     }
+            
+        // } else if self.board.turn_num < 4 {
+        //     if self.board.to_move() == Color::White {
+        //         // If it's the first move, place a Ladybug
+        //         return Turn::Place(loc_to_hex((1, 0)), Bug::Queen);
+        //     }else {
+        //         // If it's the first move, place a Beetle
+        //         return Turn::Place(loc_to_hex((1, 2)), Bug::Queen);
+        //     }
+        // } else if self.board.turn_num < 6 {
+        //     if self.board.to_move() == Color::White {
+        //         return Turn::Place(loc_to_hex((2, 0)), Bug::Pillbug);
+        //     }else {
+        //         // If it's the first move, place a Beetle
+        //         return Turn::Place(loc_to_hex((2, 3)), Bug::Pillbug);
+        //     }
+        // }
+        //////////////////////////////////////////////////////////////////////////////////
+        //version that implement a single opening functioning
+        // if true {//self.random_opening
+        //     // Ignore minimax and just throw out a random jumpy bug for the first move.
+        //     if self.board.turn_num < 2 {
+        //         loop {
+        //             let turn =
+        //                 minimax::Random::<Rules>::default().choose_move(&self.board).unwrap();
+        //             if let Turn::Place(hex, bug) = turn {
+        //                 if matches!(
+        //                     bug,
+        //                     Bug::Ladybug // | Bug::Beetle | Bug::Grasshopper 
+        //                 ) {
+        //                     // let mut moves = Vec::new();
+        //                     // Rules::generate_moves(&self.board, &mut moves);
+        //                     //I want to print all the moves
+        //                     //println!("Possible moves: {:?}", moves);
+        //                     println!("{:?}", turn);
+        //                     return turn;
+        //                 }
+        //             }
+        //         }
+        //     } else if self.board.turn_num < 4 {
+        //         loop {
+        //             let turn =
+        //                 minimax::Random::<Rules>::default().choose_move(&self.board).unwrap();
+        //             if let Turn::Place(_, bug) = turn {
+        //                 if bug == Bug::Queen {
+        //                     return turn;
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     if self.board.turn_num < 6 {
+        //         loop {
+        //             let turn =
+        //                 minimax::Random::<Rules>::default().choose_move(&self.board).unwrap();
+        //             if let Turn::Place(_, bug) = turn {
+        //                 //I want to check is a pillbug and if it is aligned with the queen and ladybug
+        //                 if bug == Bug::Pillbug {
+        //                     let mut moves = Vec::new();
+        //                     Rules::generate_moves(&self.board, &mut moves);
+        //                     let current_color = self.board.to_move();
+        //                     let queen_hex = self.board.find_bug(current_color, Bug::Queen, 1);
+        //                     let ladybug_hex = self.board.find_bug(current_color, Bug::Ladybug, 1);
+        //                     // println!("length: {}", moves.len());
+        //                     // println!("moves: {:?}", moves);
+        //                     //iterate on all moves and check if the pillbug is aligned with the queen and ladybug
+        //                     for m in moves {
+        //                         if let Turn::Place(hex, bug) = m {
+        //                             if bug == Bug::Pillbug {
+        //                                 let pillbug_hex = hex;
+        //                                 // Debug: stampa le posizioni trovate
+        //                                 println!("Ladybug hex: {:?}", ladybug_hex);
+        //                                 println!("Queen hex: {:?}", queen_hex);
+        //                                 println!("Pillbug hex: {:?}", pillbug_hex);
+                                        
+        //                                 // Controlla se abbiamo sia Queen che Ladybug
+        //                                 if let (Some(q_hex), Some(l_hex)) = (queen_hex, ladybug_hex) {
+        //                                     // Controlla se sono allineati
+        //                                     if is_aligned(pillbug_hex, q_hex, l_hex) {
+        //                                         println!("Pillbug allineato trovato!");
+        //                                         println!("Mossa allineata: {:?}", m);
+        //                                         return m; // Ritorna solo la mossa allineata
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                     return turn;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        //////////////////////////////////////////////////////////////////////////////////
+        if self.board.turn_num < 2 {
+            let openings = Openings::new();
+            let chosen_opening = openings.get_random_opening();
+            
+            if let Some((opening_name, bug_vector)) = chosen_opening {
+                self.actual_opening = Some((opening_name.clone(), bug_vector.clone()));
+                // println!("Chosen opening: {:?}", opening_name);
+                return openings.get_opening(opening_name, &self.board, bug_vector).unwrap();
             }
+        }
+        if self.board.turn_num < 6 {
+            if let Some((opening_name, bug_vector)) = &self.actual_opening {
+                let openings = Openings::new(); // Devi creare una nuova istanza qui
+                // println!("Continuing opening: {:?}", opening_name);
+                return openings.get_opening(opening_name, &self.board, bug_vector).unwrap();
+            }
+        }
+        if self.board.turn_num < 8 {
+            if let Some((opening_name, bug_vector)) = &self.actual_opening {
+                if bug_vector.len() > 3 {
+                    let openings = Openings::new(); // Devi creare una nuova istanza qui
+                    // println!("Continuing opening: {:?}", opening_name);
+                    return openings.get_opening(opening_name, &self.board, bug_vector).unwrap();
+                }
+            } 
         }
         self.strategy.choose_move(&self.board).unwrap()
     }
@@ -327,6 +444,7 @@ pub fn configure_player() -> Result<(PlayerConfig, Vec<String>), pico_args::Erro
 
     // 0 for num_cpu threads; >0 for specific count.
     // Always use 1 thread for num_threads.
+    //THREAD HARDCODED
     config.num_threads = Some(1);
     // Previous code for parsing --num-threads:
     // config.num_threads = args.opt_value_from_str("--num-threads")?.map(|thread_arg: String| {
@@ -435,5 +553,218 @@ impl PlayerConfig {
                 )
             }
         })
+    }
+}
+
+
+//Openings structure, that if it's initiate return a random opening from a list, if it's called with an identifier of the opening and the board instead return the next move of the opening
+
+pub struct Openings {
+    openings: Vec<(String,Vec<Bug>)>
+}
+
+impl Openings {
+    pub fn new() -> Self {
+        let openings = vec![
+            (
+                "antispawn".to_string(),
+                // Bug vector with Ladybug, Queen, Pillbug
+                vec![Bug::Ladybug, Bug::Queen, Bug::Pillbug]
+            ),
+            (
+                "antispawn first variation".to_string(),
+                // Grasshopper, Queen, Pillbug
+                vec![Bug::Grasshopper, Bug::Queen, Bug::Pillbug]
+            ), 
+            (
+                "antispawn second variation".to_string(),
+                // Ladybug, Queen, Ant, Pillbug
+                vec![Bug::Ladybug, Bug::Queen, Bug::Ant, Bug::Pillbug]
+            ),   
+            (
+                "antispawn third variation".to_string(),
+                // Ladybug, Queen, Ant, Pillbug
+                vec![Bug::Ladybug, Bug::Queen, Bug::Mosquito, Bug::Pillbug]
+            ),    
+            (
+                "diamond".to_string(),
+                // Ladybug, Queen, Ant, Mosquito
+                vec![Bug::Ladybug, Bug::Queen, Bug::Ant, Bug::Mosquito]
+            ),
+            (
+                "quick ant attack".to_string(),
+                // Pillbug, Queen, Ant
+                vec![Bug::Pillbug, Bug::Queen, Bug::Ant]
+            ),
+            (
+                "quick ant attack first variation".to_string(),
+                // Ladybug, Queen, Ant
+                vec![Bug::Ladybug, Bug::Queen, Bug::Ant]
+            ),
+            (
+                "quick ant attack second variation".to_string(),
+                // Grasshopper, Queen, Ant
+                vec![Bug::Grasshopper, Bug::Queen, Bug::Ant]
+            )
+        ];
+        Openings { openings }
+    }
+    pub fn get_random_opening(&self) -> Option<(&String, &Vec<Bug>)> {
+        // TO DO: add a probability distribution to the openings
+        if self.openings.is_empty() {
+            return None;
+        }
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let index = rng.gen_range(0..self.openings.len());
+        Some((&self.openings[index].0, &self.openings[index].1))
+    }
+    pub fn get_opening(&self, identifier: &str, board: &Board, bug_vector: &Vec<Bug>) -> Option<Turn> {
+        // for (name, moves) in &self.openings {
+        //     if name == identifier && turn_num < moves.len() {
+        //         let turn = moves[turn_num].clone();
+        //         // Check if the move is valid on the current board
+        //         if Rules::is_valid_move(board, &turn) {
+        //             return Some(turn);
+        //         }
+        //     }
+        // }
+        // None
+        if board.turn_num < 2 {
+            loop {
+                let turn =
+                    minimax::Random::<Rules>::default().choose_move(&board).unwrap();
+                if let Turn::Place(hex, bug) = turn {
+                    if bug == bug_vector[0] { // Rimuovi matches! se controlli solo un bug
+                        return Some(turn); // Ritorna Some(turn)
+                    }
+                }
+            }
+        } else if board.turn_num < 4 {
+            loop {
+                let turn =
+                    minimax::Random::<Rules>::default().choose_move(&board).unwrap();
+                if let Turn::Place(_, bug) = turn {
+                    if bug == Bug::Queen { //hardcoded as in all openings the queen is the second bug
+                        return Some(turn);
+                    }
+                }//TO DO: if diamond I need the queen in a specific position, not aligned with the piece of the adversary
+            }
+        }
+        if board.turn_num < 6 {
+            //here start the true logic of the opening
+            // - if identifier is "antispawn", "antispawn fist variation", "quick ant attack"(or one of its varitions) then I want to check for alignement
+            // - otherwise I need to do 4 moves
+            //   - if identifier is "diamond" or "diamond first variation" then I want that third bug form a V with the other two and the fourth complete the diamond
+            //   - otherwise ("antispawn second variation", "antispawn third variation") I want that third bug form a triangle with the other two and the fourth alignes with the first two
+            if identifier == "antispawn" || identifier == "antispawn first variation"
+                || identifier == "quick ant attack" || identifier == "quick ant attack first variation"
+                || identifier == "quick ant attack second variation" {
+                let mut moves = Vec::new();
+                Rules::generate_moves(&board, &mut moves);
+                let current_color = board.to_move();
+                let first_hex = board.find_bug(current_color, bug_vector[0], 1);
+                let second_hex = board.find_bug(current_color, bug_vector[1], 1);
+                for m in moves {
+                    if let Turn::Place(hex, bug) = m {
+                        if bug == bug_vector[2] {
+                            let third_hex = hex;
+                            if let (Some(q_hex), Some(l_hex)) = (first_hex, second_hex) {
+                                // Check alignment
+                                if is_aligned(q_hex, l_hex, third_hex) {
+                                    return Some(m);
+                                    // println!("Found a move that is aligned: {:?}", m);
+                                }
+                            }
+                        }
+                    }
+                }
+            } 
+            if identifier == "diamond" || identifier == "antispawn second variation" || identifier == "antispawn third variation" {
+                loop{
+                    let mut moves = Vec::new();
+                    Rules::generate_moves(&board, &mut moves);
+                    let current_color = board.to_move();
+                    let first_hex = board.find_bug(current_color, bug_vector[0], 1);
+                    let second_hex = board.find_bug(current_color, bug_vector[1], 1);
+                    for m in moves {
+                        if let Turn::Place(hex, bug) = m {
+                            if bug == bug_vector[2] {
+                                let third_hex = hex;
+                                // Controlla se abbiamo sia Queen che Ladybug
+                                if let (Some(q_hex), Some(l_hex)) = (first_hex, second_hex) {
+                                    // Check if they form a triangle and if it's a valid move
+                                    if forms_triangle(q_hex, l_hex, third_hex){
+                                        return Some(m); 
+                                        // println!("Found a move that forms a triangle: {:?}", m);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break
+                }
+            }
+        }
+        if board.turn_num < 8 {
+            if identifier == "diamond" {
+                let mut moves = Vec::new();
+                Rules::generate_moves(&board, &mut moves);
+                let current_color = board.to_move();
+                let first_hex = board.find_bug(current_color, bug_vector[0], 1);
+                let third_hex = board.find_bug(current_color, bug_vector[2], 1);
+                for m in moves {
+                    if let Turn::Place(hex, bug) = m {
+                        if bug == bug_vector[3] {
+                            let fourth_hex = hex;
+                            // Check if form a triangle with the first and the third bug
+                            if let (Some(q_hex), Some(t_hex)) = (first_hex, third_hex) {
+                                // Check if they form a triangle and if it's a valid move
+                                if forms_triangle(fourth_hex, q_hex, t_hex) {
+                                    return Some(m);
+                                    // println!("Found a move that forms a diamond: {:?}", m);
+                                }
+                            }
+                        }
+                    }
+                }//TO DO: check if is right to align to 1st and 3rd and not other
+            } 
+            if identifier == "antispawn second variation" || identifier == "antispawn third variation" {
+                loop {
+                    let mut moves = Vec::new();
+                    Rules::generate_moves(&board, &mut moves);
+                    let current_color = board.to_move();
+                    let first_hex = board.find_bug(current_color, bug_vector[0], 1);
+                    let second_hex = board.find_bug(current_color, bug_vector[1], 1);
+                    for m in moves {
+                        if let Turn::Place(hex, bug) = m {
+                            if bug == bug_vector[3] {
+                                let fourth_hex = hex;
+                                // Check if the fourth is aligned with the first two bugs
+                                if let (Some(q_hex), Some(l_hex)) = (first_hex, second_hex) {
+                                    if is_aligned(q_hex, l_hex, fourth_hex) {
+                                        return Some(m); 
+                                        // println!("Found a final move dor a 4-moves opening: {:?}", m);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break
+                }
+            }
+        }
+        // If we reach here, it means we didn't find a valid move in the opening
+        // We can return a random ant on the board
+        loop {
+            let turn =
+                minimax::Random::<Rules>::default().choose_move(board).unwrap();
+            if let Turn::Place(hex, bug) = turn {
+                if bug == Bug::Ant {
+                    // println!("No valid opening move found, returning a random ant: {:?}", turn);
+                    return Some(turn);
+                }
+            }
+        }
     }
 }
