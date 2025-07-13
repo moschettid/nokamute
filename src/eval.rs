@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use crate::board::*;
 use crate::bug::Bug;
 use crate::hex_grid::*;
@@ -9,12 +7,11 @@ use minimax::{Evaluation, Evaluator};
 // An evaluator that knows nothing but the rules, and maximally explores the tree.
 pub struct DumbEvaluator;
 
-// TO DO: 
+// TO DO:
 // - clone vanilla nokamute and import our modification in a parametrized/annullable way
 // - decimal values for params
 // - add new game mechanincs to the evaluation
 // - REFACTOR
-
 
 impl Evaluator for DumbEvaluator {
     type G = Rules;
@@ -26,28 +23,27 @@ impl Evaluator for DumbEvaluator {
 // An evaluator that uses come basic heuristics to evaluate the board state.
 #[derive(Copy, Clone)]
 pub struct BasicEvaluator {
-    queen_liberty_penalty: Evaluation,
-    gates_factor: Evaluation,
-    queen_spawn_factor: Evaluation,
-    unplayed_bug_factor: Evaluation,
-    // Bonus for defensive pillbug or placeability thereof.
-    pillbug_defense_bonus: Evaluation,
-    ant_game_factor: Evaluation,
-    queen_score: Evaluation,
-    ant_score: Evaluation,
-    beetle_score: Evaluation,
-    grasshopper_score: Evaluation,
-    spider_score: Evaluation,
-    mosquito_score: Evaluation,
-    ladybug_score: Evaluation,
-    pillbug_score: Evaluation,
-    mosquito_incremental_score: Evaluation,
-    stacked_bug_factor: Evaluation,
-    queen_movable_penalty_factor: Evaluation,
-    opponent_queen_liberty_penalty_factor: Evaluation,
-    trap_queen_penalty: Evaluation,
-    placeable_pillbug_defense_bonus: Evaluation,
-    pinnable_beetle_factor: Evaluation,
+    queen_liberty_penalty: f32,
+    gates_factor: f32,
+    queen_spawn_factor: f32,
+    unplayed_bug_factor: f32,
+    pillbug_defense_bonus: f32,
+    ant_game_factor: f32,
+    queen_score: f32,
+    ant_score: f32,
+    beetle_score: f32,
+    grasshopper_score: f32,
+    spider_score: f32,
+    mosquito_score: f32,
+    ladybug_score: f32,
+    pillbug_score: f32,
+    mosquito_incremental_score: f32,
+    stacked_bug_factor: f32,
+    queen_movable_penalty_factor: f32,
+    opponent_queen_liberty_penalty_factor: f32,
+    trap_queen_penalty: f32,
+    placeable_pillbug_defense_bonus: f32,
+    pinnable_beetle_factor: f32,
 }
 
 // Ideas:
@@ -65,137 +61,137 @@ pub struct BasicEvaluator {
 impl BasicEvaluator {
     pub(crate) fn new() -> Self {
         Self {
-            queen_liberty_penalty: 200,
-            gates_factor: 10,
-            queen_spawn_factor: 40,
-            unplayed_bug_factor: 1,
-            pillbug_defense_bonus: 40,
-            ant_game_factor: 25,
-            queen_score: 3,
-            ant_score: 7,
-            beetle_score: 6,
-            grasshopper_score: 3,
-            spider_score: 2,
-            mosquito_score: 8,
-            ladybug_score: 4,
-            pillbug_score: 5,
-            mosquito_incremental_score: 2,
-            stacked_bug_factor: 4,
-            queen_movable_penalty_factor: 2,
-            opponent_queen_liberty_penalty_factor: 2,
-            trap_queen_penalty: 200,
-            placeable_pillbug_defense_bonus: 20,
-            pinnable_beetle_factor: 8,
+            queen_liberty_penalty: 200.0,
+            gates_factor: 10.0,
+            queen_spawn_factor: 40.0,
+            unplayed_bug_factor: 1.0,
+            pillbug_defense_bonus: 40.0,
+            ant_game_factor: 25.0,
+            queen_score: 3.0,
+            ant_score: 7.0,
+            beetle_score: 6.0,
+            grasshopper_score: 3.0,
+            spider_score: 2.0,
+            mosquito_score: 8.0,
+            ladybug_score: 4.0,
+            pillbug_score: 5.0,
+            mosquito_incremental_score: 2.0,
+            stacked_bug_factor: 4.0,
+            queen_movable_penalty_factor: 2.0,
+            opponent_queen_liberty_penalty_factor: 2.0,
+            trap_queen_penalty: 200.0,
+            placeable_pillbug_defense_bonus: 20.0,
+            pinnable_beetle_factor: 8.0,
         }
     }
 
     // Setter methods for each attribute
-    pub fn queen_liberty_penalty(&mut self, value: Evaluation) -> &mut Self {
+    pub fn queen_liberty_penalty(&mut self, value: f32) -> &mut Self {
         self.queen_liberty_penalty = value;
         self
     }
 
-    pub fn gates_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn gates_factor(&mut self, value: f32) -> &mut Self {
         self.gates_factor = value;
         self
     }
 
-    pub fn queen_spawn_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn queen_spawn_factor(&mut self, value: f32) -> &mut Self {
         self.queen_spawn_factor = value;
         self
     }
 
-    pub fn unplayed_bug_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn unplayed_bug_factor(&mut self, value: f32) -> &mut Self {
         self.unplayed_bug_factor = value;
         self
     }
 
-    pub fn pillbug_defense_bonus(&mut self, value: Evaluation) -> &mut Self {
+    pub fn pillbug_defense_bonus(&mut self, value: f32) -> &mut Self {
         self.pillbug_defense_bonus = value;
         self
     }
 
-    pub fn ant_game_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn ant_game_factor(&mut self, value: f32) -> &mut Self {
         self.ant_game_factor = value;
         self
     }
 
-    pub fn queen_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn queen_score(&mut self, value: f32) -> &mut Self {
         self.queen_score = value;
         self
     }
 
-    pub fn ant_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn ant_score(&mut self, value: f32) -> &mut Self {
         self.ant_score = value;
         self
     }
 
-    pub fn beetle_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn beetle_score(&mut self, value: f32) -> &mut Self {
         self.beetle_score = value;
         self
     }
 
-    pub fn grasshopper_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn grasshopper_score(&mut self, value: f32) -> &mut Self {
         self.grasshopper_score = value;
         self
     }
 
-    pub fn spider_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn spider_score(&mut self, value: f32) -> &mut Self {
         self.spider_score = value;
         self
     }
 
-    pub fn mosquito_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn mosquito_score(&mut self, value: f32) -> &mut Self {
         self.mosquito_score = value;
         self
     }
 
-    pub fn ladybug_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn ladybug_score(&mut self, value: f32) -> &mut Self {
         self.ladybug_score = value;
         self
     }
 
-    pub fn pillbug_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn pillbug_score(&mut self, value: f32) -> &mut Self {
         self.pillbug_score = value;
         self
     }
 
-    pub fn mosquito_incremental_score(&mut self, value: Evaluation) -> &mut Self {
+    pub fn mosquito_incremental_score(&mut self, value: f32) -> &mut Self {
         self.mosquito_incremental_score = value;
         self
     }
 
-    pub fn stacked_bug_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn stacked_bug_factor(&mut self, value: f32) -> &mut Self {
         self.stacked_bug_factor = value;
         self
     }
 
-    pub fn queen_movable_penalty_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn queen_movable_penalty_factor(&mut self, value: f32) -> &mut Self {
         self.queen_movable_penalty_factor = value;
         self
     }
 
-    pub fn opponent_queen_liberty_penalty_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn opponent_queen_liberty_penalty_factor(&mut self, value: f32) -> &mut Self {
         self.opponent_queen_liberty_penalty_factor = value;
         self
     }
 
-    pub fn trap_queen_penalty(&mut self, value: Evaluation) -> &mut Self {
+    pub fn trap_queen_penalty(&mut self, value: f32) -> &mut Self {
         self.trap_queen_penalty = value;
         self
     }
 
-    pub fn placeable_pillbug_defense_bonus(&mut self, value: Evaluation) -> &mut Self {
+    pub fn placeable_pillbug_defense_bonus(&mut self, value: f32) -> &mut Self {
         self.placeable_pillbug_defense_bonus = value;
         self
     }
 
-    pub fn pinnable_beetle_factor(&mut self, value: Evaluation) -> &mut Self {
+    pub fn pinnable_beetle_factor(&mut self, value: f32) -> &mut Self {
         self.pinnable_beetle_factor = value;
         self
     }
 
-    fn value(&self, bug: Bug) -> Evaluation {
+    fn value(&self, bug: Bug) -> f32 {
         // Mostly made up. All I know is that ants are good.
         match bug {
             Bug::Queen => self.queen_score,
@@ -216,9 +212,8 @@ impl Default for BasicEvaluator {
     }
 }
 
-fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> Evaluation {
-    adjacent(hex).into_iter().filter(|&adj| adj == origin || !board.occupied(adj)).count()
-        as Evaluation
+fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> u8 {
+    adjacent(hex).into_iter().filter(|&adj| adj == origin || !board.occupied(adj)).count() as u8
 }
 
 fn placeable(board: &Board, hex: Hex, color: Color) -> bool {
@@ -243,26 +238,32 @@ impl Evaluator for BasicEvaluator {
         let mut buf = [0; 6];
         let mut immovable = board.find_cut_vertexes();
 
-        let mut score = 0;
+        let mut score = 0.0;
         let mut pillbug_defense = [false; 2];
-        let mut queen_score = [0; 2];
-        let mut gates_score = [0; 2];
-        let mut unplayed_bug_score = 0;
+        let mut queen_score = [0.0; 2];
+        let mut gates_score = [0.0; 2];
+        let mut unplayed_bug_score = 0.0;
         let mut can_pin_beetle = [false; 2];
 
         // Check for spawn points.
-        let spawn_flag = spawn_points_flag(board, board.to_move());
-        let spawn_flag_opponent = spawn_points_flag(board, board.to_move().other());
+        let mut spawn_flag = spawn_points_flag(board, board.to_move());
+        let mut spawn_flag_opponent = spawn_points_flag(board, board.to_move().other());
+        let spawn_flag_active = true; // Should paramentrize this TODO
+        if !spawn_flag_active {
+            //Is the spawn flag strategy not activated, we short-circuit the control
+            spawn_flag = true;
+            spawn_flag_opponent = true;
+        } //Ideally, should be ok to keep it active, since if there are no spawn points, the unplayed bugs are useless
         let remaining = board.get_remaining();
         let opp_remaining = board.get_opponent_remaining();
         for bug in Bug::iter_all() {
-            if spawn_flag && remaining[bug as usize] > 0 {
-                unplayed_bug_score += (remaining[bug as usize] as Evaluation)
-                    * self.unplayed_bug_factor
-                    * self.value(bug);
+            //Slightly modified in order to get more similar to the original version: we count each unplayed bug not only once
+            if spawn_flag {
+                unplayed_bug_score +=
+                    (remaining[bug as usize] as f32) * self.unplayed_bug_factor * self.value(bug);
             }
-            if spawn_flag_opponent && opp_remaining[bug as usize] > 0 {
-                unplayed_bug_score -= (opp_remaining[bug as usize] as Evaluation)
+            if spawn_flag_opponent {
+                unplayed_bug_score -= (opp_remaining[bug as usize] as f32)
                     * self.unplayed_bug_factor
                     * self.value(bug);
             }
@@ -271,11 +272,7 @@ impl Evaluator for BasicEvaluator {
         // Calculate the difference between the two players' played ants.
         let mut ant = 0;
         let mut ant_opponent = 0;
-        //if initial turns, put ant and mosquito score to 0 and don't count the ant game
-        // let mut initial_turns = false;
-        // if board.turn_num < 11 {
-        //     initial_turns = true;
-        // }
+
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
             let mut bug_score = self.value(node.bug());
@@ -284,7 +281,7 @@ impl Evaluator for BasicEvaluator {
             let mut mosquito_ant = false;
             if node.bug() == Bug::Mosquito {
                 // Mosquitos are valued as they can currently move.
-                bug_score = 0;
+                bug_score = 0.0;
                 crawler = true;
                 let can_slide_mosquito =
                     board.slidable_adjacent(&mut buf, hex, hex).next().is_some();
@@ -298,7 +295,7 @@ impl Evaluator for BasicEvaluator {
                                 if bug.crawler() && !can_slide_mosquito {
                                     continue;
                                 }
-                                bug_score = max(bug_score, self.value(bug));
+                                bug_score = bug_score.max(self.value(bug));
                             }
                             if bug == Bug::Pillbug {
                                 pillbug_powers = true;
@@ -313,12 +310,14 @@ impl Evaluator for BasicEvaluator {
                     }
                     bug_score += self.mosquito_incremental_score;
                 }
-            };
+            }
             if node.bug() == Bug::Ant || mosquito_ant {
+                //TODO URGENT: shouldn't I turn the mosquito_ant flag off after increasing the value? Otherwise, after the first mosquito-ant, every bug is valued as an ant.
                 if !immovable.get(hex) {
                     can_pin_beetle[node.color() as usize] = true;
                 }
                 if node.color() == board.to_move() {
+                    //TODO URGENT: since i'm not even verifying whether this bug can move, couldn't I just use remaining[Bug::Ant] outside the loop?
                     ant += 1;
                 } else {
                     ant_opponent += 1;
@@ -376,7 +375,7 @@ impl Evaluator for BasicEvaluator {
 
             if adjacent(enemy_queen).contains(&hex) {
                 // Discourage liberty filling by valuable bugs, by setting their score to zero when filling a liberty.
-                bug_score = 0;
+                bug_score = 0.0;
                 // A little extra boost for filling opponent's queen, as we will never choose to move.
                 queen_score[node.color().other() as usize] -=
                     self.queen_liberty_penalty * self.opponent_queen_liberty_penalty_factor;
@@ -406,25 +405,22 @@ impl Evaluator for BasicEvaluator {
                 continue;
             }
 
-            //Why this factor?
-            //bug_score *= self.movable_bug_factor;
             if node.color() != board.to_move() {
                 bug_score = -bug_score;
             }
             score += bug_score;
         }
 
-        //check for ant game
         let ant_difference = ant - ant_opponent;
-        // if it's one of the first 4 moves, we don't want to count the ants
-        // if !initial_turns {
-        //     score += self.ant_game_factor * ant_difference;
-        // }
-        score += self.ant_game_factor * ant_difference;
+        score += self.ant_game_factor * ant_difference as f32;
 
-        let mut pillbug_defense_score = self.pillbug_defense_bonus
-            * (pillbug_defense[board.to_move() as usize] as Evaluation
-                - pillbug_defense[board.to_move().other() as usize] as Evaluation);
+        let mut pillbug_defense_score = 0.0;
+        if pillbug_defense[board.to_move() as usize] {
+            pillbug_defense_score += self.pillbug_defense_bonus
+        }
+        if pillbug_defense[board.to_move().other() as usize] {
+            pillbug_defense_score -= self.pillbug_defense_bonus;
+        }
 
         // Check for backup defensive pillbug placeability option, discounted value
         pillbug_defense = [false; 2];
@@ -439,17 +435,21 @@ impl Evaluator for BasicEvaluator {
                 pillbug_defense[color as usize] = true;
             }
         }
-        pillbug_defense_score += self.placeable_pillbug_defense_bonus
-            * (pillbug_defense[board.to_move() as usize] as Evaluation
-                - pillbug_defense[board.to_move().other() as usize] as Evaluation);
+
+        if pillbug_defense[board.to_move() as usize] {
+            pillbug_defense_score += self.placeable_pillbug_defense_bonus
+        }
+        if pillbug_defense[board.to_move().other() as usize] {
+            pillbug_defense_score -= self.placeable_pillbug_defense_bonus;
+        }
 
         // Check for gates.
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
-        gates_score[board.to_move() as usize] += check_gates(board, board.to_move())
-            * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable));
-        gates_score[board.to_move().other() as usize] -=
-            check_gates(board, board.to_move().other())
-                * (4 - count_free_grasshoppers(board, board.to_move(), &immovable));
+        gates_score[board.to_move() as usize] += check_gates(board, board.to_move()) as f32
+            * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable)) as f32;
+        gates_score[board.to_move().other() as usize] -= check_gates(board, board.to_move().other())
+            as f32
+            * (4 - count_free_grasshoppers(board, board.to_move(), &immovable)) as f32;
         let gates_score = (gates_score[board.to_move() as usize]
             - gates_score[board.to_move().other() as usize])
             * self.gates_factor;
@@ -457,16 +457,17 @@ impl Evaluator for BasicEvaluator {
         // Check for spawn points next to opponent queen
         // before check if there is an available beetle, otherwise the spawn points will be 0
         //check also if there are bugs that can easily pin our beetle in the future
-        let mut queen_spawn_score = 0;
+        let mut queen_spawn_score = 0.0;
         if board.remaining[board.to_move() as usize][Bug::Beetle as usize] > 0 {
-            queen_spawn_score = count_queen_spawn_points(board, board.to_move());
+            queen_spawn_score = count_queen_spawn_points(board, board.to_move()) as f32;
             if can_pin_beetle[board.to_move().other() as usize] {
                 queen_spawn_score /= self.pinnable_beetle_factor;
             }
         }
-        let mut queen_spawn_score_opponent = 0;
+        let mut queen_spawn_score_opponent = 0.0;
         if board.remaining[board.to_move().other() as usize][Bug::Beetle as usize] > 0 {
-            queen_spawn_score_opponent = count_queen_spawn_points(board, board.to_move().other());
+            queen_spawn_score_opponent =
+                count_queen_spawn_points(board, board.to_move().other()) as f32;
             if can_pin_beetle[board.to_move() as usize] {
                 queen_spawn_score_opponent /= self.pinnable_beetle_factor;
             }
@@ -477,12 +478,12 @@ impl Evaluator for BasicEvaluator {
 
         let queen_score =
             queen_score[board.to_move() as usize] - queen_score[board.to_move().other() as usize];
-        queen_score
+        (queen_score
             + pillbug_defense_score
             + score
             + gates_score
             + unplayed_bug_score
-            + queen_spawn_score
+            + queen_spawn_score) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
@@ -661,7 +662,7 @@ fn is_there_a_filling_ladybug(board: &Board, color: Color, hex: Hex) -> bool {
     false // No filling ladybug found
 }
 
-fn count_free_grasshoppers(board: &Board, color: Color, immovable: &HexSet) -> Evaluation {
+fn count_free_grasshoppers(board: &Board, color: Color, immovable: &HexSet) -> u8 {
     let mut count = 0;
 
     // Count grasshoppers already on the board and free to move
@@ -676,12 +677,12 @@ fn count_free_grasshoppers(board: &Board, color: Color, immovable: &HexSet) -> E
     }
 
     // Add the number of unplayed grasshoppers
-    count += board.remaining[color as usize][Bug::Grasshopper as usize] as Evaluation;
+    count += board.remaining[color as usize][Bug::Grasshopper as usize];
 
     count // Return the total count of free grasshoppers
 }
 
-fn check_gates(board: &Board, color: Color) -> Evaluation {
+fn check_gates(board: &Board, color: Color) -> u8 {
     //Hex
     let queen = board.queens[color as usize];
     let mut gates = 0;
@@ -731,7 +732,7 @@ fn spawn_points_flag(board: &Board, color: Color) -> bool {
 }
 
 //function to count the spawn points near a peice next to the adversary queen
-fn count_queen_spawn_points(board: &Board, color: Color) -> Evaluation {
+fn count_queen_spawn_points(board: &Board, color: Color) -> u8 {
     //opponent queen
     let opp_queen = board.queens[1 - (color as usize)]; //not opponent queen
     let mut queen_spawn = 0;
