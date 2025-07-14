@@ -237,6 +237,7 @@ impl Evaluator for BasicEvaluator {
     fn evaluate(&self, board: &Board) -> Evaluation {
         let mut buf = [0; 6];
         let mut immovable = board.find_cut_vertexes();
+        let pinned = immovable.clone();
 
         let mut score = 0.0;
         let mut pillbug_defense = [false; 2];
@@ -288,11 +289,17 @@ impl Evaluator for BasicEvaluator {
                 if node.is_stacked() {
                     bug_score = self.value(Bug::Beetle);
                 } else {
+                    let mut adj_mosquito = false;
+                    let mut real_adj = 0;
                     for adj in adjacent(hex) {
                         if board.occupied(adj) {
                             let bug = board.node(adj).bug();
+                            real_adj += 1;
+                            if bug == Bug::Mosquito {
+                                adj_mosquito = true;
+                            }
                             if bug != Bug::Queen {
-                                if bug.crawler() && !can_slide_mosquito {
+                                if bug.crawler() && bug != Bug::Pillbug && !can_slide_mosquito {
                                     continue;
                                 }
                                 bug_score = bug_score.max(self.value(bug));
@@ -308,19 +315,12 @@ impl Evaluator for BasicEvaluator {
                             }
                         }
                     }
+                    if adj_mosquito && real_adj == 1 {
+                        //In this case, it is immovable
+                        immovable.set(hex);
+                        continue;
+                    }
                     bug_score += self.mosquito_incremental_score;
-                }
-            }
-            if node.bug() == Bug::Ant || mosquito_ant {
-                //TODO URGENT: shouldn't I turn the mosquito_ant flag off after increasing the value? Otherwise, after the first mosquito-ant, every bug is valued as an ant.
-                if !immovable.get(hex) {
-                    can_pin_beetle[node.color() as usize] = true;
-                }
-                if node.color() == board.to_move() {
-                    //TODO URGENT: since i'm not even verifying whether this bug can move, couldn't I just use remaining[Bug::Ant] outside the loop?
-                    ant += 1;
-                } else {
-                    ant_opponent += 1;
                 }
             }
 
@@ -351,7 +351,7 @@ impl Evaluator for BasicEvaluator {
                 }
                 if pillbug_powers
                     && board.node(friendly_queen).clipped_height() == 1
-                    && !immovable.get(friendly_queen)
+                    && !pinned.get(friendly_queen)
                 {
                     let best_escape = adjacent(hex)
                         .into_iter()
@@ -381,7 +381,7 @@ impl Evaluator for BasicEvaluator {
                     self.queen_liberty_penalty * self.opponent_queen_liberty_penalty_factor;
                 if pillbug_powers
                     && board.node(enemy_queen).clipped_height() == 1
-                    && !immovable.get(enemy_queen)
+                    && !pinned.get(enemy_queen)
                 {
                     let best_unescape = adjacent(hex)
                         .into_iter()
@@ -403,6 +403,16 @@ impl Evaluator for BasicEvaluator {
             if !node.is_stacked() && immovable.get(hex) {
                 // Pinned bugs are worthless.
                 continue;
+            }
+
+            if node.bug() == Bug::Ant || mosquito_ant {
+                can_pin_beetle[node.color() as usize] = true;
+                if node.color() == board.to_move() {
+                    //Refactor
+                    ant += 1;
+                } else {
+                    ant_opponent += 1;
+                }
             }
 
             if node.color() != board.to_move() {
