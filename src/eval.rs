@@ -1,6 +1,9 @@
 use crate::board::*;
 use crate::bug::Bug;
 use crate::hex_grid::*;
+use crate::{nokamute_version, Board, Rules, Turn};
+use minimax::*;
+
 
 use minimax::{Evaluation, Evaluator};
 
@@ -46,6 +49,8 @@ pub struct BasicEvaluator {
     pinnable_beetle_factor: f32,
     //new factors
     mosquito_ant_factor: f32,
+    compactness_factor: f32,
+    mobility_factor: f32,
 }
 
 // Ideas:
@@ -86,6 +91,8 @@ impl BasicEvaluator {
             pinnable_beetle_factor: 8.0,
             //new factors
             mosquito_ant_factor: 1.0,
+            compactness_factor: 1.0,
+            mobility_factor: 1.0
         }
     }
 
@@ -200,6 +207,16 @@ impl BasicEvaluator {
         self
     }
 
+    pub fn compactness_factor(&mut self, value: f32) -> &mut Self {
+        self.compactness_factor = value;
+        self
+    }
+
+    pub fn mobility_factor(&mut self, value: f32) -> &mut Self {
+        self.mobility_factor = value;
+        self
+    }
+
     fn value(&self, bug: Bug) -> f32 {
         // Mostly made up. All I know is that ants are good.
         match bug {
@@ -282,6 +299,10 @@ impl Evaluator for BasicEvaluator {
         // Calculate the difference between the two players' played ants.
         let mut ant = 0;
         let mut ant_opponent = 0;
+        let mut movable_bugs = 0;
+        let mut movable_bugs_opponent = 0;
+        let mut num_triangles = 0;
+        let mut num_triangles_opponent = 0;
 
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
@@ -424,18 +445,47 @@ impl Evaluator for BasicEvaluator {
                 }
             }
 
-            if mosquito_ant {
-                score += self.mosquito_ant_factor
-            }
-
             if node.color() != board.to_move() {
                 bug_score = -bug_score;
             }
+            
+            if mosquito_ant {
+                if node.color() == board.to_move() {
+                    score += self.mosquito_ant_factor
+                } else {
+                    score += self.mosquito_ant_factor
+                }
+            }
+
+            if node.color() == board.to_move() {
+                movable_bugs += 1
+            } else {
+                movable_bugs_opponent += 1;
+            }
+
+            if node.color() == board.to_move() {
+                num_triangles = triangles_from_hex(board, board.to_move(), hex)
+            } else {
+                num_triangles_opponent = triangles_from_hex(board, board.to_move().other(), hex)
+            } 
+
             score += bug_score;
         }
 
         let ant_difference = ant - ant_opponent;
         score += self.ant_game_factor * ant_difference as f32;
+
+        let mut moves = Vec::new();
+        Rules::generate_moves(&board, &mut moves);
+        let num_moves = moves.len();
+        let mobility = movable_bugs*num_moves;
+        //TODO: mobility opponent non mi permette di chiamare generate moves
+        //let mobility_opponent
+        //TODO:add mobility and compactness to the final score
+        //TODO:add 4 pieces for compactness
+        num_triangles = num_triangles/3;
+        num_triangles_opponent = num_triangles_opponent/3;
+        let compactness = num_triangles - num_triangles_opponent;
 
         let mut pillbug_defense_score = 0.0;
         if pillbug_defense[board.to_move() as usize] {
@@ -773,6 +823,22 @@ fn count_queen_spawn_points(board: &Board, color: Color) -> u8 {
         }
     }
     queen_spawn
+}
+/////////////////////////////////////////////////////////////////////////////////
+fn triangles_from_hex(board: &Board, color: Color, hex: Hex) -> u8 {
+    //check if in hex consecutive adjacent there are two pieces of the same color
+    let mut count = 0;
+    let mut prev = hex;
+    for &adj in adjacent(hex).iter() {
+        if prev == adj {
+            continue; // Skip the same hex
+        }
+        if board.occupied(prev) && board.occupied(adj) && board.node(prev).color() == color && board.node(adj).color() == color {
+            count += 1; // Count the piece
+        }
+        prev = adj;
+    }
+    return count
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
