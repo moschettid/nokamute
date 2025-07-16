@@ -44,6 +44,8 @@ pub struct BasicEvaluator {
     trap_queen_penalty: f32,
     placeable_pillbug_defense_bonus: f32,
     pinnable_beetle_factor: f32,
+    //new factors
+    mosquito_ant_factor: f32,
 }
 
 // Ideas:
@@ -82,6 +84,8 @@ impl BasicEvaluator {
             trap_queen_penalty: 200.0,
             placeable_pillbug_defense_bonus: 20.0,
             pinnable_beetle_factor: 8.0,
+            //new factors
+            mosquito_ant_factor: 1.0,
         }
     }
 
@@ -188,6 +192,11 @@ impl BasicEvaluator {
 
     pub fn pinnable_beetle_factor(&mut self, value: f32) -> &mut Self {
         self.pinnable_beetle_factor = value;
+        self
+    }
+    //new factors
+    pub fn mosquito_ant_factor(&mut self, value: f32) -> &mut Self {
+        self.mosquito_ant_factor = value;
         self
     }
 
@@ -413,6 +422,10 @@ impl Evaluator for BasicEvaluator {
                 } else {
                     ant_opponent += 1;
                 }
+            }
+
+            if mosquito_ant {
+                score += self.mosquito_ant_factor
             }
 
             if node.color() != board.to_move() {
