@@ -3,6 +3,8 @@ use crate::bug::Bug;
 use crate::hex_grid::*;
 use crate::{nokamute_version, Board, Rules, Turn};
 use minimax::*;
+use crate::hex_grid::find_aligned_hex;
+
 
 
 use minimax::{Evaluation, Evaluator};
@@ -10,7 +12,7 @@ use minimax::{Evaluation, Evaluator};
 // An evaluator that knows nothing but the rules, and maximally explores the tree.
 pub struct DumbEvaluator;
 
-// TO DO:
+// TODO:
 // - clone vanilla nokamute and import our modification in a parametrized/annullable way
 // - decimal values for params
 // - add new game mechanincs to the evaluation
@@ -301,8 +303,8 @@ impl Evaluator for BasicEvaluator {
         let mut ant_opponent = 0;
         let mut movable_bugs = 0;
         let mut movable_bugs_opponent = 0;
-        let mut num_triangles = 0;
-        let mut num_triangles_opponent = 0;
+        let mut num_triangles = 0.0;
+        let mut num_triangles_opponent = 0.0;
 
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
@@ -464,9 +466,9 @@ impl Evaluator for BasicEvaluator {
             }
 
             if node.color() == board.to_move() {
-                num_triangles = triangles_from_hex(board, board.to_move(), hex)
+                num_triangles = triangles_from_hex(board, board.to_move(), hex) as f32;
             } else {
-                num_triangles_opponent = triangles_from_hex(board, board.to_move().other(), hex)
+                num_triangles_opponent = triangles_from_hex(board, board.to_move().other(), hex) as f32;
             } 
 
             score += bug_score;
@@ -478,14 +480,15 @@ impl Evaluator for BasicEvaluator {
         let mut moves = Vec::new();
         Rules::generate_moves(&board, &mut moves);
         let num_moves = moves.len();
-        let mobility = movable_bugs*num_moves;
+        let mobility_to_move = movable_bugs*num_moves;
         //TODO: mobility opponent non mi permette di chiamare generate moves
-        //let mobility_opponent
-        //TODO:add mobility and compactness to the final score
+        let mobility_opponent = 0;
+        let mobility = (mobility_to_move - mobility_opponent) as f32;
         //TODO:add 4 pieces for compactness
-        num_triangles = num_triangles/3;
-        num_triangles_opponent = num_triangles_opponent/3;
-        let compactness = num_triangles - num_triangles_opponent;
+        //TODO:add pocket to compactness, idea check 3 pieces alignment + central piece with 3 triangles
+        num_triangles = num_triangles as f32/3.0;
+        num_triangles_opponent = num_triangles_opponent as f32/3.0;
+        let mut compactness = (num_triangles - num_triangles_opponent)*self.compactness_factor;
 
         let mut pillbug_defense_score = 0.0;
         if pillbug_defense[board.to_move() as usize] {
@@ -553,10 +556,12 @@ impl Evaluator for BasicEvaluator {
             queen_score[board.to_move() as usize] - queen_score[board.to_move().other() as usize];
         (queen_score
             + pillbug_defense_score
-            + score
+            + score //containing already the mosquito_ant_factor
             + gates_score
             + unplayed_bug_score
-            + queen_spawn_score) as Evaluation
+            + queen_spawn_score
+            + compactness
+            + mobility) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
@@ -842,6 +847,25 @@ fn triangles_from_hex(board: &Board, color: Color, hex: Hex) -> u8 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+fn pocket_from_low_angle_hex(board: &Board, hex: Hex) -> bool {
+    for &mid in adjacent(hex).iter() {
+        if board.occupied(mid) && board.node(hex).color() == board.node(mid).color() {
+            if let Some(third) = find_aligned_hex(hex, mid) {
+                if board.occupied(mid) && board.node(hex).color() == board.node(third).color(){
+                    if triangles_from_hex(board, board.node(mid).color(), mid)>=3{
+                        return true;
+                    }
+                } 
+            }
+        }
+    }
+    return false;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod test_gating {
