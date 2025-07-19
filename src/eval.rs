@@ -53,6 +53,7 @@ pub struct BasicEvaluator {
     mosquito_ant_factor: f32, //check if our mosquito has ant powers
     mobility_factor: f32, //count how many bugs can move and how many moves they can do
     compactness_factor: f32, //check if there are triangles, four pieces or pockets
+    pocket_factor: f32, //count how many pockets are present
 }
 
 // Ideas:
@@ -95,6 +96,7 @@ impl BasicEvaluator {
             mosquito_ant_factor: 1.0,
             mobility_factor: 1.0,
             compactness_factor: 1.0,
+            pocket_factor: 1.0,
         }
     }
 
@@ -460,7 +462,7 @@ impl Evaluator for BasicEvaluator {
                 if node.color() == board.to_move() {
                     score += self.mosquito_ant_factor
                 } else {
-                    score += self.mosquito_ant_factor
+                    score -= self.mosquito_ant_factor
                 }
             }
 
@@ -479,15 +481,13 @@ impl Evaluator for BasicEvaluator {
             } 
 
             pockets_presence = pocket_from_low_angle_hex(board, hex);
-            if node.color() == board.to_move() {
-                if pockets_presence {
+            if pockets_presence {
+                if node.color() == board.to_move() {
                     num_pockets += 1.0;
-                }
-            } else {
-                if pockets_presence {
+                } else {
                     num_pockets_opponent += 1.0;
                 }
-            }            
+            }        
 
             score += bug_score;
         }
@@ -510,6 +510,8 @@ impl Evaluator for BasicEvaluator {
         compactness += (num_four_pieces - num_four_pieces_opponent)*self.compactness_factor;
         //TODO: reasoning if pockets should be counted apart or not from triangles
         compactness += (num_pockets - num_pockets_opponent)*self.compactness_factor;
+
+        let pocket_score = (num_pockets - num_pockets_opponent) * self.pocket_factor;
 
         let mut pillbug_defense_score = 0.0;
         if pillbug_defense[board.to_move() as usize] {
@@ -582,7 +584,8 @@ impl Evaluator for BasicEvaluator {
             + unplayed_bug_score
             + queen_spawn_score
             + mobility
-            + compactness) as Evaluation
+            + compactness
+            + pocket_score) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
