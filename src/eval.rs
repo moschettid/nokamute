@@ -50,9 +50,9 @@ pub struct BasicEvaluator {
     placeable_pillbug_defense_bonus: f32,
     pinnable_beetle_factor: f32,
     //new factors
-    mosquito_ant_factor: f32,
-    compactness_factor: f32,
-    mobility_factor: f32,
+    mosquito_ant_factor: f32, //check if our mosquito has ant powers
+    mobility_factor: f32, //count how many bugs can move and how many moves they can do
+    compactness_factor: f32, //check if there are triangles, four pieces or pockets
 }
 
 // Ideas:
@@ -93,8 +93,8 @@ impl BasicEvaluator {
             pinnable_beetle_factor: 8.0,
             //new factors
             mosquito_ant_factor: 1.0,
+            mobility_factor: 1.0,
             compactness_factor: 1.0,
-            mobility_factor: 1.0
         }
     }
 
@@ -209,13 +209,13 @@ impl BasicEvaluator {
         self
     }
 
-    pub fn compactness_factor(&mut self, value: f32) -> &mut Self {
-        self.compactness_factor = value;
+    pub fn mobility_factor(&mut self, value: f32) -> &mut Self {
+        self.mobility_factor = value;
         self
     }
 
-    pub fn mobility_factor(&mut self, value: f32) -> &mut Self {
-        self.mobility_factor = value;
+    pub fn compactness_factor(&mut self, value: f32) -> &mut Self {
+        self.compactness_factor = value;
         self
     }
 
@@ -305,6 +305,10 @@ impl Evaluator for BasicEvaluator {
         let mut movable_bugs_opponent = 0;
         let mut num_triangles = 0.0;
         let mut num_triangles_opponent = 0.0;
+        let mut num_four_pieces = 0.0;
+        let mut num_four_pieces_opponent = 0.0;
+        let mut num_pockets = 0.0;
+        let mut num_pockets_opponent = 0.0;
 
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
@@ -312,6 +316,7 @@ impl Evaluator for BasicEvaluator {
             let mut pillbug_powers = node.bug() == Bug::Pillbug;
             let mut crawler = node.bug().crawler();
             let mut mosquito_ant = false;
+            let mut pockets_presence = false;
             if node.bug() == Bug::Mosquito {
                 // Mosquitos are valued as they can currently move.
                 bug_score = 0.0;
@@ -466,10 +471,23 @@ impl Evaluator for BasicEvaluator {
             }
 
             if node.color() == board.to_move() {
-                num_triangles = triangles_from_hex(board, board.to_move(), hex) as f32;
+                num_triangles += triangles_from_hex(board, hex) as f32;
+                num_four_pieces += four_pieces_from_hex(board, hex) as f32;                
             } else {
-                num_triangles_opponent = triangles_from_hex(board, board.to_move().other(), hex) as f32;
+                num_triangles_opponent += triangles_from_hex(board, hex) as f32;
+                num_four_pieces_opponent += four_pieces_from_hex(board, hex) as f32;
             } 
+
+            pockets_presence = pocket_from_low_angle_hex(board, hex);
+            if node.color() == board.to_move() {
+                if pockets_presence {
+                    num_pockets += 1.0;
+                }
+            } else {
+                if pockets_presence {
+                    num_pockets_opponent += 1.0;
+                }
+            }            
 
             score += bug_score;
         }
@@ -484,11 +502,14 @@ impl Evaluator for BasicEvaluator {
         //TODO: mobility opponent non mi permette di chiamare generate moves
         let mobility_opponent = 0;
         let mobility = (mobility_to_move - mobility_opponent) as f32;
-        //TODO:add 4 pieces for compactness
-        //TODO:add pocket to compactness, idea check 3 pieces alignment + central piece with 3 triangles
-        num_triangles = num_triangles as f32/3.0;
+        num_triangles = num_triangles as f32/3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
         num_triangles_opponent = num_triangles_opponent as f32/3.0;
+        num_pockets = num_pockets as f32/2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
+        num_pockets_opponent = num_pockets_opponent as f32/2.0;
         let mut compactness = (num_triangles - num_triangles_opponent)*self.compactness_factor;
+        compactness += (num_four_pieces - num_four_pieces_opponent)*self.compactness_factor;
+        //TODO: reasoning if pockets should be counted apart or not from triangles
+        compactness += (num_pockets - num_pockets_opponent)*self.compactness_factor;
 
         let mut pillbug_defense_score = 0.0;
         if pillbug_defense[board.to_move() as usize] {
@@ -560,8 +581,8 @@ impl Evaluator for BasicEvaluator {
             + gates_score
             + unplayed_bug_score
             + queen_spawn_score
-            + compactness
-            + mobility) as Evaluation
+            + mobility
+            + compactness) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
@@ -830,16 +851,19 @@ fn count_queen_spawn_points(board: &Board, color: Color) -> u8 {
     queen_spawn
 }
 /////////////////////////////////////////////////////////////////////////////////
-fn triangles_from_hex(board: &Board, color: Color, hex: Hex) -> u8 {
-    //check if in hex consecutive adjacent there are two pieces of the same color
+
+fn triangles_from_hex(board: &Board, hex: Hex) -> u8 {
+    //check if in consecutive adjacent hexes there are two pieces of the same color
     let mut count = 0;
     let mut prev = hex;
+    let color = board.node(hex).color();
     for &adj in adjacent(hex).iter() {
-        if prev == adj {
-            continue; // Skip the same hex
+        if prev == hex {
+            prev = adj; // Skip the first hex
+            continue;
         }
         if board.occupied(prev) && board.occupied(adj) && board.node(prev).color() == color && board.node(adj).color() == color {
-            count += 1; // Count the piece
+            count += 1; // Count the triangle
         }
         prev = adj;
     }
@@ -848,14 +872,47 @@ fn triangles_from_hex(board: &Board, color: Color, hex: Hex) -> u8 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+fn four_pieces_from_hex(board: &Board, hex: Hex) -> u8 {
+    //check if in consecutive adjacent hexes there are three pieces of the same color
+    //note that it will be counted two times, given the hexagonal form
+    let mut count = 0;
+    let mut prev1 = hex;
+    let mut prev2 = hex;
+    let color = board.node(hex).color();
+    for &adj in adjacent(hex).iter() {
+        if prev1 == hex {
+            prev1 = adj; // Skip the first hex
+            continue;
+        }
+        if prev2 == hex {
+            prev2 = prev1;
+            prev1 = adj;
+            continue;
+        }
+        if board.occupied(prev1) && board.occupied(prev2) && board.occupied(adj) && 
+           board.node(prev1).color() == color && board.node(prev2).color() == color && 
+           board.node(adj).color() == color {
+            count += 1; // Count the four pieces
+        }
+        prev2 = prev1;
+        prev1 = adj;        
+    }
+    return count
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn pocket_from_low_angle_hex(board: &Board, hex: Hex) -> bool {
+    //a pocket has this form:
+    // - three pieces of the same color in a row, the major basis: low angle 1, mid, low angle 1
+    // - two pieces of the same color in a row, the minor basis -> this with the mid hex forms a triangle
+    //note that the mid hex actually forms three triangles, the other two are with the low angle hexes and ne hex of the minor basis
+    //note finally that if mid forms at least three triangles it has to be a pocket, it's easy visible graphically
     for &mid in adjacent(hex).iter() {
         if board.occupied(mid) && board.node(hex).color() == board.node(mid).color() {
             if let Some(third) = find_aligned_hex(hex, mid) {
                 if board.occupied(mid) && board.node(hex).color() == board.node(third).color(){
-                    if triangles_from_hex(board, board.node(mid).color(), mid)>=3{
+                    if triangles_from_hex(board, mid)>=3{
                         return true;
                     }
                 } 
