@@ -544,10 +544,19 @@ impl Evaluator for BasicEvaluator {
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
         gates_score[board.to_move() as usize] += check_gates(board, board.to_move()) as f32
             * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable)) as f32;
+        if ant_opponent == 0 {
+            // If no ants, we don't count gates.
+            gates_score[board.to_move() as usize] = 0.0;
+        }
+
         gates_score[board.to_move().other() as usize] -= check_gates(board, board.to_move().other())
             as f32
             * (4 - count_free_grasshoppers(board, board.to_move(), &immovable)) as f32;
-        let gates_score = (gates_score[board.to_move() as usize]
+        if ant == 0 {
+            // If no opponent ants, we don't count gates.
+            gates_score[board.to_move().other() as usize] = 0.0;
+        }
+        let gates_score = (gates_score[board.to_move() as usize] //Refactor: ambiguous to recycle this variable name
             - gates_score[board.to_move().other() as usize])
             * self.gates_factor;
 
