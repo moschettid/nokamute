@@ -1,11 +1,9 @@
 use crate::board::*;
 use crate::bug::Bug;
+use crate::hex_grid::find_aligned_hex;
 use crate::hex_grid::*;
 use crate::{nokamute_version, Board, Rules, Turn};
 use minimax::*;
-use crate::hex_grid::find_aligned_hex;
-
-
 
 use minimax::{Evaluation, Evaluator};
 
@@ -51,9 +49,9 @@ pub struct BasicEvaluator {
     pinnable_beetle_factor: f32,
     //new factors
     mosquito_ant_factor: f32, //check if our mosquito has ant powers
-    mobility_factor: f32, //count how many bugs can move and how many moves they can do
-    compactness_factor: f32, //check if there are triangles, four pieces or pockets
-    pocket_factor: f32, //count how many pockets are present
+    mobility_factor: f32,     //count how many bugs can move and how many moves they can do
+    compactness_factor: f32,  //check if there are triangles, four pieces or pockets
+    pocket_factor: f32,       //count how many pockets are present
 }
 
 // Ideas:
@@ -457,7 +455,7 @@ impl Evaluator for BasicEvaluator {
             if node.color() != board.to_move() {
                 bug_score = -bug_score;
             }
-            
+
             if mosquito_ant {
                 if node.color() == board.to_move() {
                     score += self.mosquito_ant_factor
@@ -474,11 +472,11 @@ impl Evaluator for BasicEvaluator {
 
             if node.color() == board.to_move() {
                 num_triangles += triangles_from_hex(board, hex) as f32;
-                num_four_pieces += four_pieces_from_hex(board, hex) as f32;                
+                num_four_pieces += four_pieces_from_hex(board, hex) as f32;
             } else {
                 num_triangles_opponent += triangles_from_hex(board, hex) as f32;
                 num_four_pieces_opponent += four_pieces_from_hex(board, hex) as f32;
-            } 
+            }
 
             pockets_presence = pocket_from_low_angle_hex(board, hex);
             if pockets_presence {
@@ -487,7 +485,7 @@ impl Evaluator for BasicEvaluator {
                 } else {
                     num_pockets_opponent += 1.0;
                 }
-            }        
+            }
 
             score += bug_score;
         }
@@ -496,20 +494,20 @@ impl Evaluator for BasicEvaluator {
         score += self.ant_game_factor * ant_difference as f32;
 
         let mut moves = Vec::new();
-        Rules::generate_moves(&board, &mut moves);
+        Rules::generate_moves(board, &mut moves);
         let num_moves = moves.len();
-        let mobility_to_move = movable_bugs*num_moves;
+        let mobility_to_move = movable_bugs * num_moves;
         //TODO: mobility opponent non mi permette di chiamare generate moves
         let mobility_opponent = 0;
         let mobility = (mobility_to_move - mobility_opponent) as f32;
-        num_triangles = num_triangles as f32/3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
-        num_triangles_opponent = num_triangles_opponent as f32/3.0;
-        num_pockets = num_pockets as f32/2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
-        num_pockets_opponent = num_pockets_opponent as f32/2.0;
-        let mut compactness = (num_triangles - num_triangles_opponent)*self.compactness_factor;
-        compactness += (num_four_pieces - num_four_pieces_opponent)*self.compactness_factor;
+        num_triangles /= 3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
+        num_triangles_opponent /= 3.0;
+        num_pockets /= 2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
+        num_pockets_opponent /= 2.0;
+        let mut compactness = (num_triangles - num_triangles_opponent) * self.compactness_factor;
+        compactness += (num_four_pieces - num_four_pieces_opponent) * self.compactness_factor;
         //TODO: reasoning if pockets should be counted apart or not from triangles
-        compactness += (num_pockets - num_pockets_opponent)*self.compactness_factor;
+        compactness += (num_pockets - num_pockets_opponent) * self.compactness_factor;
 
         let pocket_score = (num_pockets - num_pockets_opponent) * self.pocket_factor;
 
@@ -865,12 +863,16 @@ fn triangles_from_hex(board: &Board, hex: Hex) -> u8 {
             prev = adj; // Skip the first hex
             continue;
         }
-        if board.occupied(prev) && board.occupied(adj) && board.node(prev).color() == color && board.node(adj).color() == color {
+        if board.occupied(prev)
+            && board.occupied(adj)
+            && board.node(prev).color() == color
+            && board.node(adj).color() == color
+        {
             count += 1; // Count the triangle
         }
         prev = adj;
     }
-    return count
+    count
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -892,15 +894,19 @@ fn four_pieces_from_hex(board: &Board, hex: Hex) -> u8 {
             prev1 = adj;
             continue;
         }
-        if board.occupied(prev1) && board.occupied(prev2) && board.occupied(adj) && 
-           board.node(prev1).color() == color && board.node(prev2).color() == color && 
-           board.node(adj).color() == color {
+        if board.occupied(prev1)
+            && board.occupied(prev2)
+            && board.occupied(adj)
+            && board.node(prev1).color() == color
+            && board.node(prev2).color() == color
+            && board.node(adj).color() == color
+        {
             count += 1; // Count the four pieces
         }
         prev2 = prev1;
-        prev1 = adj;        
+        prev1 = adj;
     }
-    return count
+    count
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -914,15 +920,16 @@ fn pocket_from_low_angle_hex(board: &Board, hex: Hex) -> bool {
     for &mid in adjacent(hex).iter() {
         if board.occupied(mid) && board.node(hex).color() == board.node(mid).color() {
             if let Some(third) = find_aligned_hex(hex, mid) {
-                if board.occupied(mid) && board.node(hex).color() == board.node(third).color(){
-                    if triangles_from_hex(board, mid)>=3{
-                        return true;
-                    }
-                } 
+                if board.occupied(mid)
+                    && board.node(hex).color() == board.node(third).color()
+                    && triangles_from_hex(board, mid) >= 3
+                {
+                    return true;
+                }
             }
         }
     }
-    return false;
+    false
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

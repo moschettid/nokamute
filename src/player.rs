@@ -691,8 +691,8 @@ impl Openings {
         // None
         if board.turn_num < 2 {
             loop {
-                let turn = minimax::Random::<Rules>::default().choose_move(&board).unwrap();
-                if let Turn::Place(hex, bug) = turn {
+                let turn = minimax::Random::<Rules>::default().choose_move(board).unwrap();
+                if let Turn::Place(_, bug) = turn {
                     if bug == bug_vector[0] {
                         // Rimuovi matches! se controlli solo un bug
                         return Some(turn); // Ritorna Some(turn)
@@ -709,7 +709,7 @@ impl Openings {
             // }//TO DO: if diamond I need the queen in a specific position, not aligned with the piece of the adversary
             if identifier == "diamond" {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 let current_color = board.to_move();
                 let first_hex = board.find_bug(current_color, bug_vector[0], 1);
                 //find the adversary piece near our first bug
@@ -734,9 +734,9 @@ impl Openings {
                 }
             } else {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 for m in moves {
-                    if let Turn::Place(hex, bug) = m {
+                    if let Turn::Place(_, bug) = m {
                         if bug == bug_vector[1] {
                             return Some(m);
                         }
@@ -756,7 +756,7 @@ impl Openings {
                 || identifier == "quick ant attack second variation"
             {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 let current_color = board.to_move();
                 let first_hex = board.find_bug(current_color, bug_vector[0], 1);
                 let second_hex = board.find_bug(current_color, bug_vector[1], 1);
@@ -779,7 +779,7 @@ impl Openings {
                 || identifier == "antispawn third variation"
             {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 let current_color = board.to_move();
                 let first_hex = board.find_bug(current_color, bug_vector[0], 1);
                 let second_hex = board.find_bug(current_color, bug_vector[1], 1);
@@ -801,7 +801,7 @@ impl Openings {
         } else if board.turn_num < 8 {
             if identifier == "diamond" {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 let current_color = board.to_move();
                 let first_hex = board.find_bug(current_color, bug_vector[0], 1);
                 let third_hex = board.find_bug(current_color, bug_vector[2], 1);
@@ -824,7 +824,7 @@ impl Openings {
                 || identifier == "antispawn third variation"
             {
                 let mut moves = Vec::new();
-                Rules::generate_moves(&board, &mut moves);
+                Rules::generate_moves(board, &mut moves);
                 let current_color = board.to_move();
                 let first_hex = board.find_bug(current_color, bug_vector[0], 1);
                 let second_hex = board.find_bug(current_color, bug_vector[1], 1);
@@ -856,6 +856,6 @@ impl Openings {
         //         }
         //     }
         // }
-        return Some(Turn::Pass); // If no valid move is found, return Pass
+        Some(Turn::Pass) // If no valid move is found, return Pass
     }
 }
