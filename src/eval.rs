@@ -309,6 +309,17 @@ impl Evaluator for BasicEvaluator {
         let mut num_four_pieces_opponent = 0.0;
         let mut num_pockets = 0.0;
         let mut num_pockets_opponent = 0.0;
+        let mut beetle_on_enemy_queen = [false; 2];
+        let mut beetle_on_enemy_pillbug = [false; 2];
+        let mut direct_queen_drop_spots = [0; 2];
+
+        for &under_node in board.get_underworld().iter() {
+            let cur_node = under_node.node();
+            let top_node = board.node(under_node.hex());
+            if cur_node.bug() == Bug::Pillbug && top_node.color() != cur_node.color() {
+                beetle_on_enemy_pillbug[cur_node.color() as usize] = true;
+            }
+        }
 
         for &hex in board.occupied_hexes[0].iter().chain(board.occupied_hexes[1].iter()) {
             let node = board.node(hex);
@@ -316,7 +327,7 @@ impl Evaluator for BasicEvaluator {
             let mut pillbug_powers = node.bug() == Bug::Pillbug;
             let mut crawler = node.bug().crawler();
             let mut mosquito_ant = false;
-            let mut pockets_presence = false;
+
             if node.bug() == Bug::Mosquito {
                 // Mosquitos are valued as they can currently move.
                 bug_score = 0.0;
@@ -370,6 +381,27 @@ impl Evaluator for BasicEvaluator {
 
             if node.is_stacked() {
                 bug_score *= self.stacked_bug_factor;
+
+                //Check if the piece is over the opponent queen
+                let opp_queen_hex = board.queens[node.color().other() as usize];
+                if hex == opp_queen_hex {
+                    beetle_on_enemy_queen[node.color() as usize] = true;
+
+                    //I also check if there is option for direct drop
+                    'possible_drops: for drop in adjacent(hex) {
+                        if !board.occupied(drop) {
+                            //Check if adjacents of drop are not 'other' color
+                            for x in adjacent(drop) {
+                                if board.occupied(x)
+                                    && board.node(x).color() == node.color().other()
+                                {
+                                    continue 'possible_drops;
+                                }
+                            }
+                            direct_queen_drop_spots[node.color() as usize] += 1;
+                        }
+                    }
+                }
             }
 
             let friendly_queen = board.queens[node.color() as usize];
@@ -478,7 +510,7 @@ impl Evaluator for BasicEvaluator {
                 num_four_pieces_opponent += four_pieces_from_hex(board, hex) as f32;
             }
 
-            pockets_presence = pocket_from_low_angle_hex(board, hex);
+            let pockets_presence = pocket_from_low_angle_hex(board, hex);
             if pockets_presence {
                 if node.color() == board.to_move() {
                     num_pockets += 1.0;
