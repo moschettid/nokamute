@@ -528,18 +528,12 @@ impl Evaluator for BasicEvaluator {
                 movable_bugs_opponent += 1;
             }
 
-            if node.color() == board.to_move() {
-                num_triangles[board.to_move() as usize] += triangles_from_hex(board, hex);
-                num_four_pieces[board.to_move() as usize] += four_pieces_from_hex(board, hex);
-            } else {
-                num_triangles[board.to_move().other() as usize] += triangles_from_hex(board, hex);
-                num_four_pieces[board.to_move().other() as usize] +=
-                    four_pieces_from_hex(board, hex);
-            }
+            num_triangles[node.color() as usize] += triangles_from_hex(board, hex);
+            num_four_pieces[node.color() as usize] += four_pieces_from_hex(board, hex);
 
             let pockets_presence = pocket_from_low_angle_hex(board, hex);
             if pockets_presence {
-                num_pockets[board.to_move() as usize] += 1;
+                num_pockets[node.color() as usize] += 1;
             }
 
             //if it's a beetle and in adjacent of its adjacent there is a queen add the beetle attack factor
