@@ -332,16 +332,12 @@ impl Evaluator for BasicEvaluator {
         }
 
         // Calculate the difference between the two players' played ants.
-        let mut ant = 0;
-        let mut ant_opponent = 0;
+        let mut ants = [0; 2];
         let mut movable_bugs = 0;
         let mut movable_bugs_opponent = 0;
-        let mut num_triangles = 0.0;
-        let mut num_triangles_opponent = 0.0;
-        let mut num_four_pieces = 0.0;
-        let mut num_four_pieces_opponent = 0.0;
-        let mut num_pockets = 0.0;
-        let mut num_pockets_opponent = 0.0;
+        let mut num_triangles = [0; 2];
+        let mut num_four_pieces = [0; 2];
+        let mut num_pockets = [0; 2];
         let mut beetle_attack_score = 0.0;
         let mut beetle_attack_score_opponent = 0.0;
         let mut beetle_on_enemy_queen = [false; 2];
@@ -511,12 +507,7 @@ impl Evaluator for BasicEvaluator {
 
             if node.bug() == Bug::Ant || mosquito_ant {
                 can_pin_beetle[node.color() as usize] = true;
-                if node.color() == board.to_move() {
-                    //Refactor
-                    ant += 1;
-                } else {
-                    ant_opponent += 1;
-                }
+                ants[node.color() as usize] += 1;
             }
 
             if node.color() != board.to_move() {
@@ -538,20 +529,17 @@ impl Evaluator for BasicEvaluator {
             }
 
             if node.color() == board.to_move() {
-                num_triangles += triangles_from_hex(board, hex) as f32;
-                num_four_pieces += four_pieces_from_hex(board, hex) as f32;
+                num_triangles[board.to_move() as usize] += triangles_from_hex(board, hex);
+                num_four_pieces[board.to_move() as usize] += four_pieces_from_hex(board, hex);
             } else {
-                num_triangles_opponent += triangles_from_hex(board, hex) as f32;
-                num_four_pieces_opponent += four_pieces_from_hex(board, hex) as f32;
+                num_triangles[board.to_move().other() as usize] += triangles_from_hex(board, hex);
+                num_four_pieces[board.to_move().other() as usize] +=
+                    four_pieces_from_hex(board, hex);
             }
 
             let pockets_presence = pocket_from_low_angle_hex(board, hex);
             if pockets_presence {
-                if node.color() == board.to_move() {
-                    num_pockets += 1.0;
-                } else {
-                    num_pockets_opponent += 1.0;
-                }
+                num_pockets[board.to_move() as usize] += 1;
             }
 
             //if it's a beetle and in adjacent of its adjacent there is a queen add the beetle attack factor
@@ -576,7 +564,8 @@ impl Evaluator for BasicEvaluator {
             score += bug_score;
         }
 
-        let ant_difference = ant - ant_opponent;
+        let ant_difference =
+            ants[board.to_move() as usize] - ants[board.to_move().other() as usize];
         score += self.ant_game_factor * ant_difference as f32;
 
         let mut moves = Vec::new();
@@ -586,18 +575,25 @@ impl Evaluator for BasicEvaluator {
         //TODO: mobility opponent non mi permette di chiamare generate moves
         let mobility_opponent = 0;
         let mobility = (mobility_to_move - mobility_opponent) as f32;
-        num_triangles /= 3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
-        num_triangles_opponent /= 3.0;
-        num_four_pieces /= 2.0;
-        num_four_pieces_opponent /= 2.0;
-        num_pockets /= 2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
-        num_pockets_opponent /= 2.0;
-        let mut compactness = (num_triangles - num_triangles_opponent) * self.compactness_factor;
-        compactness += (num_four_pieces - num_four_pieces_opponent) * self.compactness_factor;
+        num_triangles[0] /= 3; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
+        num_triangles[1] /= 3;
+        num_four_pieces[0] /= 2;
+        num_four_pieces[1] /= 2;
+        num_pockets[0] /= 2; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
+        num_pockets[1] /= 2;
+        let mut compactness = num_triangles[board.to_move() as usize]
+            - num_triangles[board.to_move().other() as usize];
+        compactness += num_four_pieces[board.to_move() as usize]
+            - num_four_pieces[board.to_move().other() as usize];
         //TODO: reasoning if pockets should be counted apart or not from triangles
-        compactness += (num_pockets - num_pockets_opponent) * self.compactness_factor;
+        compactness +=
+            num_pockets[board.to_move() as usize] - num_pockets[board.to_move().other() as usize];
 
-        let pocket_score = (num_pockets - num_pockets_opponent) * self.pocket_factor;
+        let compactness_score = compactness as f32 * self.compactness_factor;
+
+        let pocket_score = (num_pockets[board.to_move() as usize]
+            - num_pockets[board.to_move().other() as usize]) as f32
+            * self.pocket_factor;
 
         let mut pillbug_defense_score = 0.0;
         if pillbug_defense[board.to_move() as usize] {
@@ -632,7 +628,7 @@ impl Evaluator for BasicEvaluator {
         //try to do a more spefic check: check if there ara grasshopper that can jump in or there are free grasshopper
         gates_score[board.to_move() as usize] += check_gates(board, board.to_move()) as f32
             * (4 - count_free_grasshoppers(board, board.to_move().other(), &immovable)) as f32;
-        if ant_opponent == 0 {
+        if ants[board.to_move().other() as usize] == 0 {
             // If no ants, we don't count gates.
             gates_score[board.to_move() as usize] = 0.0;
         }
@@ -640,7 +636,7 @@ impl Evaluator for BasicEvaluator {
         gates_score[board.to_move().other() as usize] -= check_gates(board, board.to_move().other())
             as f32
             * (4 - count_free_grasshoppers(board, board.to_move(), &immovable)) as f32;
-        if ant == 0 {
+        if ants[board.to_move() as usize] == 0 {
             // If no opponent ants, we don't count gates.
             gates_score[board.to_move().other() as usize] = 0.0;
         }
@@ -695,7 +691,7 @@ impl Evaluator for BasicEvaluator {
             + unplayed_bug_score
             + queen_spawn_score
             + mobility
-            + compactness
+            + compactness_score
             + pocket_score
             + beetle_attack
             + beetle_on_enemy_queen_score
