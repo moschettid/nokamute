@@ -48,11 +48,14 @@ pub struct BasicEvaluator {
     placeable_pillbug_defense_bonus: f32,
     pinnable_beetle_factor: f32,
     //new factors
-    mosquito_ant_factor: f32, //check if our mosquito has ant powers
-    mobility_factor: f32,     //count how many bugs can move and how many moves they can do
-    compactness_factor: f32,  //check if there are triangles, four pieces or pockets
-    pocket_factor: f32,       //count how many pockets are present
+    mosquito_ant_factor: f32,  //check if our mosquito has ant powers
+    mobility_factor: f32,      //count how many bugs can move and how many moves they can do
+    compactness_factor: f32,   //check if there are triangles, four pieces or pockets
+    pocket_factor: f32,        //count how many pockets are present
     beetle_attack_factor: f32, //check if we can do a beetle attack
+    beetle_on_enemy_queen_factor: f32,
+    beetle_on_enemy_pillbug_factor: f32,
+    direct_queen_drop_factor: f32,
 }
 
 // Ideas:
@@ -97,6 +100,9 @@ impl BasicEvaluator {
             compactness_factor: 1.0,
             pocket_factor: 1.0,
             beetle_attack_factor: 1.0,
+            beetle_on_enemy_queen_factor: 1.0,
+            beetle_on_enemy_pillbug_factor: 1.0,
+            direct_queen_drop_factor: 1.0,
         }
     }
 
@@ -228,6 +234,21 @@ impl BasicEvaluator {
 
     pub fn beetle_attack_factor(&mut self, value: f32) -> &mut Self {
         self.beetle_attack_factor = value;
+        self
+    }
+
+    pub fn beetle_on_enemy_queen_factor(&mut self, value: f32) -> &mut Self {
+        self.beetle_on_enemy_queen_factor = value;
+        self
+    }
+
+    pub fn beetle_on_enemy_pillbug_factor(&mut self, value: f32) -> &mut Self {
+        self.beetle_on_enemy_pillbug_factor = value;
+        self
+    }
+
+    pub fn direct_queen_drop_factor(&mut self, value: f32) -> &mut Self {
+        self.direct_queen_drop_factor = value;
         self
     }
 
@@ -539,7 +560,9 @@ impl Evaluator for BasicEvaluator {
                 // Check if the beetle is adjacent to a queen
                 for adj in adjacent(hex) {
                     for adj_adj in adjacent(adj) {
-                        if board.node(adj_adj).bug() == Bug::Queen && board.node(adj_adj).color() != node.color() {
+                        if board.node(adj_adj).bug() == Bug::Queen
+                            && board.node(adj_adj).color() != node.color()
+                        {
                             if node.color() == board.to_move() {
                                 beetle_attack_score = self.beetle_attack_factor;
                             } else {
@@ -565,8 +588,8 @@ impl Evaluator for BasicEvaluator {
         let mobility = (mobility_to_move - mobility_opponent) as f32;
         num_triangles /= 3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
         num_triangles_opponent /= 3.0;
-        num_four_pieces /= 2.0; 
-        num_four_pieces_opponent /= 2.0; 
+        num_four_pieces /= 2.0;
+        num_four_pieces_opponent /= 2.0;
         num_pockets /= 2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
         num_pockets_opponent /= 2.0;
         let mut compactness = (num_triangles - num_triangles_opponent) * self.compactness_factor;
@@ -628,16 +651,15 @@ impl Evaluator for BasicEvaluator {
         // Check for spawn points next to opponent queen
         // before check if there is an available beetle, otherwise the spawn points will be 0
         //check also if there are bugs that can easily pin our beetle in the future
-        let mut queen_spawn_score = 0.0;
-        queen_spawn_score = count_queen_spawn_points(board, board.to_move()) as f32;
+        let mut queen_spawn_score = count_queen_spawn_points(board, board.to_move()) as f32;
         if board.remaining[board.to_move() as usize][Bug::Beetle as usize] > 0 {
             queen_spawn_score *= self.beetle_attack_factor;
             if can_pin_beetle[board.to_move().other() as usize] {
                 queen_spawn_score *= self.pinnable_beetle_factor;
             }
         }
-        let mut queen_spawn_score_opponent = 0.0;
-        queen_spawn_score_opponent = count_queen_spawn_points(board, board.to_move().other()) as f32;
+        let mut queen_spawn_score_opponent =
+            count_queen_spawn_points(board, board.to_move().other()) as f32;
         if board.remaining[board.to_move().other() as usize][Bug::Beetle as usize] > 0 {
             queen_spawn_score_opponent *= self.beetle_attack_factor;
             if can_pin_beetle[board.to_move() as usize] {
@@ -651,8 +673,20 @@ impl Evaluator for BasicEvaluator {
         let queen_score =
             queen_score[board.to_move() as usize] - queen_score[board.to_move().other() as usize];
 
-        let beetle_attack =
-            beetle_attack_score - beetle_attack_score_opponent;
+        let beetle_attack = beetle_attack_score - beetle_attack_score_opponent;
+        let beetle_on_enemy_queen_score = (beetle_on_enemy_queen[board.to_move() as usize] as usize
+            - beetle_on_enemy_queen[board.to_move().other() as usize] as usize)
+            as f32
+            * self.beetle_on_enemy_queen_factor;
+        let beetle_on_enemy_pillbug_score = (beetle_on_enemy_pillbug[board.to_move() as usize]
+            as usize
+            - beetle_on_enemy_pillbug[board.to_move().other() as usize] as usize)
+            as f32
+            * self.beetle_on_enemy_pillbug_factor;
+        let direct_queen_drop_score = (direct_queen_drop_spots[board.to_move() as usize]
+            - direct_queen_drop_spots[board.to_move().other() as usize])
+            as f32
+            * self.direct_queen_drop_factor;
 
         (queen_score
             + pillbug_defense_score
@@ -663,7 +697,10 @@ impl Evaluator for BasicEvaluator {
             + mobility
             + compactness
             + pocket_score
-            + beetle_attack) as Evaluation
+            + beetle_attack
+            + beetle_on_enemy_queen_score
+            + beetle_on_enemy_pillbug_score
+            + direct_queen_drop_score) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
