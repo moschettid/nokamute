@@ -95,14 +95,14 @@ impl BasicEvaluator {
             placeable_pillbug_defense_bonus: 20.0,
             pinnable_beetle_factor: 0.125,
             //new factors
-            mosquito_ant_factor: 1.0,
-            mobility_factor: 1.0,
-            compactness_factor: 1.0,
-            pocket_factor: 1.0,
-            beetle_attack_factor: 1.0,
-            beetle_on_enemy_queen_factor: 1.0,
-            beetle_on_enemy_pillbug_factor: 1.0,
-            direct_queen_drop_factor: 1.0,
+            mosquito_ant_factor: 20.0,
+            mobility_factor: 20.0,
+            compactness_factor: 20.0,
+            pocket_factor: 10.0,
+            beetle_attack_factor: 20.0,
+            beetle_on_enemy_queen_factor: 20.0,
+            beetle_on_enemy_pillbug_factor: 20.0,
+            direct_queen_drop_factor: 20.0,
         }
     }
 

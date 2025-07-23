@@ -445,6 +445,31 @@ pub fn configure_player() -> Result<(PlayerConfig, Vec<String>), pico_args::Erro
                 "pinnable_beetle_factor" => {
                     evaluator.pinnable_beetle_factor(param_value);
                 }
+                //new params
+                "mosquito_ant_factor" => {
+                    evaluator.mosquito_ant_factor(param_value);
+                }
+                "mobility_factor" => {
+                    evaluator.mobility_factor(param_value);
+                }
+                "compactness_factor" => {
+                    evaluator.compactness_factor(param_value);
+                }
+                "pocket_factor" => {
+                    evaluator.pocket_factor(param_value);
+                }
+                "beetle_attack_factor" => {
+                    evaluator.beetle_attack_factor(param_value);
+                }
+                "beetle_on_enemy_queen_factor" => {
+                    evaluator.beetle_on_enemy_queen_factor(param_value);
+                }
+                "beetle_on_enemy_pillbug_factor" => {
+                    evaluator.beetle_on_enemy_pillbug_factor(param_value);
+                }
+                "direct_queen_drop_factor" => {
+                    evaluator.direct_queen_drop_factor(param_value);
+                }
                 _ => exit(format!("Unknown parameter in --set-eval: {}", param_name)),
             };
         }
