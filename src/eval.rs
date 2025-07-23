@@ -446,7 +446,7 @@ impl Evaluator for BasicEvaluator {
                 } else {
                     // Lower penalty for being able to leave.
                     queen_score[node.color() as usize] -=
-                        self.queen_liberty_penalty / self.queen_movable_penalty_factor;
+                        self.queen_liberty_penalty * self.queen_movable_penalty_factor;
                     //TODO: /2 in 0.5
                 }
                 if pillbug_powers
