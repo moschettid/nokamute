@@ -206,7 +206,7 @@ impl BasicEvaluator {
         self.placeable_pillbug_defense_bonus = value;
         self
     }
-
+    
     pub fn pinnable_beetle_factor(&mut self, value: f32) -> &mut Self {
         self.pinnable_beetle_factor = value;
         self

@@ -25,7 +25,7 @@ from datetime import datetime
 # PROBABLE CAUSES: fitness, wrong matches, job creation, 1st-2nd gen not fitness reset
 
 # CONFIG
-NUM_PARAMS = 21
+NUM_PARAMS = 29
 POPULATION_SIZE = 30
 ELITISM = 6
 TOURNAMENT_OPPONENTS = 5
@@ -33,7 +33,7 @@ TOURNAMENT_OPPONENTS = 5
 GENERATIONS = 100
 NUM_GAMES = 2 #2
 
-starting_individual = np.array([200, 10, 40, 1, 40, 25, 3, 7, 6, 3, 2, 8, 4, 5, 2, 4, 2, 2, 200, 20, 8])
+starting_individual = np.array([200.0, 10.0, 40.0, 1, 40.0, 25.0, 3.0, 7.0, 6.0, 3.0, 2.0, 8.0, 4.0, 5.0, 2.0, 4.0, 2.0, 2.0, 200.0, 20.0, 8.0, 20.0, 20.0, 20.0, 10.0, 20.0, 20.0, 20.0, 20.0])
 # Game settings
 MAX_TURNS = 100
 TIME_TOTAL_SEC = 1
@@ -130,10 +130,11 @@ def start_game(prompt_a, prompt_b) -> str:
     path = "./nokamute"
     
     #print(f"Starting interaction with {path}...")
-    player1 = start_process(path, ["--set-eval", prompt_a, "--num-threads=1"])
+    #print(prompt_a)
+    player1 = start_process(path, ["--set-eval", prompt_a])#, "--num-threads=1"
     read_all(player1)
     #print(f"Starting interaction with {path}...")
-    player2 = start_process(path, ["--set-eval", prompt_b, "--num-threads=1"])
+    player2 = start_process(path, ["--set-eval", prompt_b])#, "--num-threads=1"
     read_all(player2)
 
     send(player1, "newgame Base+MLP")
@@ -206,13 +207,12 @@ def play_game(params_a, params_b) -> int:
     You MUST replace this with your actual engine logic.
     Return: 1 if A wins, -1 if B wins, 0 for draw
     """
-    params_a = np.round(params_a).astype(int)
-    params_b = np.round(params_b).astype(int)
+    # params_a = np.round(params_a).astype(int)
+    # params_b = np.round(params_b).astype(int)
 
-    prompt_a = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_a))
-    
-
-    prompt_b = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}".format(*list(params_b))
+    prompt_a = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}, mosquito_ant_factor:{},mobility_factor:{},compactness_factor:{},pocket_factor:{},beetle_attack_factor:{},beetle_on_enemy_queen_factor:{},beetle_on_enemy_pillbug_factor:{},direct_queen_drop_factor:{}".format(*list(params_a))
+    #print(prompt_a)
+    prompt_b = "queen_liberty_penalty:{},gates_factor:{},queen_spawn_factor:{},unplayed_bug_factor:{},pillbug_defense_bonus:{},ant_game_factor:{},queen_score:{},ant_score:{},beetle_score:{},grasshopper_score:{},spider_score:{},mosquito_score:{},ladybug_score:{},pillbug_score:{},mosquito_incremental_score:{},stacked_bug_factor:{},queen_movable_penalty_factor:{},opponent_queen_liberty_penalty_factor:{},trap_queen_penalty:{},placeable_pillbug_defense_bonus:{},pinnable_beetle_factor:{}, mosquito_ant_factor:{},mobility_factor:{},compactness_factor:{},pocket_factor:{},beetle_attack_factor:{},beetle_on_enemy_queen_factor:{},beetle_on_enemy_pillbug_factor:{},direct_queen_drop_factor:{}".format(*list(params_b))
 
     result = start_game(prompt_a, prompt_b)
     if result == "Draw":
@@ -231,7 +231,7 @@ class Individual:
     def __init__(self, batch_id=0, params=None, individual_id=None):
         # Generate random parameters between 1 and 500 if none provided
         if params is None:
-            self.params = np.random.randint(1, 501, NUM_PARAMS)
+            self.params = np.round(np.random.uniform(0, 500, NUM_PARAMS), 2)
         else:
             self.params = params
         self.batch_id = batch_id
@@ -252,12 +252,12 @@ class Individual:
             # Apply random mutation within the range
             mutated_params[i] += np.random.uniform(-param_scale, param_scale)
             # Ensure parameters are bigger than 1
-            mutated_params[i] = max(mutated_params[i], 1)
+            mutated_params[i] = mutated_params[i]
         # Return a new individual with the mutated parameters
         if random_param_sample:
             # Randomly sample a subset of  5 parameters to generate random
             index = np.random.choice(NUM_PARAMS, 1, replace=False)
-            mutated_params[index] = np.random.randint(1, 501)
+            mutated_params[index] = np.round(np.random.uniform(0, 500, 1), 2)
         return Individual(batch_id=self.batch_id, params=mutated_params, individual_id=self.individual_id)
 
 # -------------------------------
@@ -298,8 +298,8 @@ def evaluate_population(population: List[Individual], threads: int):
                     if winner_idx is not None:
                         population[winner_idx].fitness += 0.6 * 3
             #check if winner_idx and loser_idx are in 1,2,3,4,5,6
-            if winner_idx < 6 or loser_idx < 6:
-                print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
+            # if winner_idx < 6 or loser_idx < 6:
+            #     print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
         
 
 
@@ -379,7 +379,7 @@ def crossover(params_a, params_b):
         # Preserve sign from one of the parents (randomly chosen)
         sign = np.sign(params_a[i]) if random.random() < 0.5 else np.sign(params_b[i])
         # Round to nearest integer and convert to int
-        child_params[i] = int(sign * round(harmonic_mean))
+        child_params[i] = sign * round(harmonic_mean)
     return child_params
 
 def train(threads: int):
