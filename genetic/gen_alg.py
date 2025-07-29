@@ -31,9 +31,11 @@ ELITISM = 6
 TOURNAMENT_OPPONENTS = 5
 
 GENERATIONS = 100
-NUM_GAMES = 2 #2
+NUM_GAMES = 5 #2
 
-starting_individual = np.array([200.0, 10.0, 40.0, 1, 40.0, 25.0, 3.0, 7.0, 6.0, 3.0, 2.0, 8.0, 4.0, 5.0, 2.0, 4.0, 2.0, 2.0, 200.0, 20.0, 8.0, 20.0, 20.0, 20.0, 10.0, 20.0, 20.0, 20.0, 20.0])
+#starting_individual = np.array([200.0, 10.0, 40.0, 1, 40.0, 25.0, 3.0, 7.0, 6.0, 3.0, 2.0, 8.0, 4.0, 5.0, 2.0, 4.0, 2.0, 2.0, 200.0, 20.0, 8.0, 20.0, 20.0, 20.0, 10.0, 20.0, 20.0, 20.0, 20.0])
+starting_individual = np.array([200.0, 0, 0, 1.0, 40.0, 0, 4.0, 7.0, 6.0, 2.0, 2.0, 8.0, 6.0, 5.0, 0.0, 2.0, 0.5, 0.5, 200.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
 # Game settings
 MAX_TURNS = 100
 TIME_TOTAL_SEC = 1
@@ -72,6 +74,17 @@ def generate_jobs(num_teams: int, batch_size: int) -> list:
         for match in zip(batch1, batch2):
             jobs.append(match)
 
+    return jobs
+
+def generate_all_jobs(num_teams: int) -> list:
+    """
+    Generate all possible matchups for a round-robin tournament.
+    Each team plays against every other team exactly once.
+    """
+    jobs = []
+    for i in range(num_teams):
+        for j in range(i + 1, num_teams):
+            jobs.append((i, j))
     return jobs
 
 # -------------------------------
@@ -157,7 +170,7 @@ def start_game(prompt_a, prompt_b) -> str:
     end_process(player1)
     end_process(player2)
     # print("Game over.")
-    print(f"Game result: {info[1]}")
+    #print(f"Game result: {info[1]}")
     
     
     return info[1] # risultato della partita
@@ -197,7 +210,7 @@ def play_match(ind_a: 'Individual', ind_b: 'Individual') -> List[tuple]: #REFACT
         else:
             results.append((ind_a, ind_b, ind_b, False))
 
-    print(f"Match between {ind_a.batch_id} and {ind_b.batch_id} finished")
+    print(f"Match between {ind_a.individual_id} and {ind_b.individual_id} finished")
     return results
     
 
@@ -251,8 +264,6 @@ class Individual:
                 param_scale = 0.1
             # Apply random mutation within the range
             mutated_params[i] += np.random.uniform(-param_scale, param_scale)
-            # Ensure parameters are bigger than 1
-            mutated_params[i] = mutated_params[i]
         # Return a new individual with the mutated parameters
         if random_param_sample:
             # Randomly sample a subset of  5 parameters to generate random
@@ -266,7 +277,8 @@ class Individual:
 
 def evaluate_population(population: List[Individual], threads: int):
     # Define jobs
-    jobs = generate_jobs(POPULATION_SIZE, 6)
+    #jobs = generate_jobs(POPULATION_SIZE, 6)
+    jobs = generate_all_jobs(POPULATION_SIZE)
 
     if threads > 1:
         with Pool(threads) as pool:
@@ -282,21 +294,21 @@ def evaluate_population(population: List[Individual], threads: int):
             if draw:
                 if winner.individual_id == white.individual_id:
                     if winner_idx is not None:
-                        population[winner_idx].fitness += 0.4
+                        population[winner_idx].fitness += 0.45
                     if loser_idx is not None:
-                        population[loser_idx].fitness += 0.6
+                        population[loser_idx].fitness += 0.55
                 else:
                     if winner_idx is not None:
-                        population[winner_idx].fitness += 0.6
+                        population[winner_idx].fitness += 0.55
                     if loser_idx is not None:
-                        population[loser_idx].fitness += 0.4
+                        population[loser_idx].fitness += 0.45
             else:
                 if winner.individual_id == white.individual_id:
                     if winner_idx is not None:
-                        population[winner_idx].fitness += 0.4 * 3
+                        population[winner_idx].fitness += 0.45 * 3
                 else:
                     if winner_idx is not None:
-                        population[winner_idx].fitness += 0.6 * 3
+                        population[winner_idx].fitness += 0.65 * 3
             #check if winner_idx and loser_idx are in 1,2,3,4,5,6
             # if winner_idx < 6 or loser_idx < 6:
             #     print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
@@ -345,9 +357,10 @@ def evolve_population(population: List[Individual]) -> List[Individual]:
         child = Individual(params=population[i].params).mutate(40, True)  # Strong mutation
         new_population.append(child)
 
+    # Not even necessary(?)
     while len(new_population) < POPULATION_SIZE:
         parent = random.choice(population[:POPULATION_SIZE // 2])
-        new_population.append(parent.mutate())
+        new_population.append(parent.mutate(0))
     
     for i in range(POPULATION_SIZE // batch_size):
         for j in range(batch_size):
@@ -368,7 +381,7 @@ def crossover(params_a, params_b):
     """
     """crossover_point = random.randint(0, NUM_PARAMS - 1)
     child_params = np.concatenate((params_a[:crossover_point], params_b[crossover_point:]))"""
-    # Compute harmonic mean while handling potential zeros in parameters
+    """# Compute harmonic mean while handling potential zeros in parameters
     # Harmonic mean = n / (sum of reciprocals)
     epsilon = 1e-10  # Small value to prevent division by zero
     child_params = np.zeros_like(params_a)
@@ -379,7 +392,15 @@ def crossover(params_a, params_b):
         # Preserve sign from one of the parents (randomly chosen)
         sign = np.sign(params_a[i]) if random.random() < 0.5 else np.sign(params_b[i])
         # Round to nearest integer and convert to int
-        child_params[i] = sign * round(harmonic_mean)
+        child_params[i] = sign * round(harmonic_mean)"""
+    # get random crossover subset of params
+    number_of_crossover_params = random.randint(1, NUM_PARAMS // 2)
+    crossover_indices = np.random.choice(NUM_PARAMS, size=number_of_crossover_params, replace=False)
+    remaining_indices = np.setdiff1d(np.arange(NUM_PARAMS), crossover_indices)
+
+    child_params = np.zeros_like(params_a)
+    child_params[crossover_indices] = params_a[crossover_indices]
+    child_params[remaining_indices] = params_b[remaining_indices]
     return child_params
 
 def train(threads: int):

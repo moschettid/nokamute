@@ -264,7 +264,7 @@ impl Player for NokamutePlayer {
         //     }
         // }
         //////////////////////////////////////////////////////////////////////////////////
-        if self.board.turn_num < 2 {
+        /*if self.board.turn_num < 2 {
             let openings = Openings::new();
             let distribution = [0.4, 0.1, 0.1, 0.1, 0.3, 0.0, 0.0, 0.0];
             let chosen_opening = openings.get_random_opening(Some(&distribution));
@@ -292,7 +292,7 @@ impl Player for NokamutePlayer {
                     }
                 }
             }
-        }
+        }*/
         self.strategy.choose_move(&self.board).unwrap()
     }
 
