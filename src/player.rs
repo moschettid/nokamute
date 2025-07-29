@@ -657,13 +657,13 @@ impl Openings {
         // let index = rng.gen_range(0..self.openings.len());
         // Some((&self.openings[index].0, &self.openings[index].1))
 
+        use rand::rng;
         use rand::seq::index;
-        use rand::thread_rng;
 
         let default_distribution = [0.4, 0.1, 0.1, 0.1, 0.3, 0.0, 0.0, 0.0];
         let weights = distribution.unwrap_or(&default_distribution);
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         //test of the distribution: generate 50 values and print them
         // let mut counts = vec![0.0; self.openings.len()];
@@ -699,7 +699,7 @@ impl Openings {
             Err(_) => {
                 // Fallback a selezione casuale uniforme in caso di errore
                 use rand::Rng;
-                let index = rng.gen_range(0..self.openings.len());
+                let index = rng.random_range(0..self.openings.len());
                 Some((&self.openings[index].0, &self.openings[index].1))
             }
         }
