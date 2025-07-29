@@ -5,15 +5,12 @@ use crate::adjacent;
 use crate::cli::CliPlayer;
 use crate::hex_grid::forms_triangle;
 use crate::hex_grid::is_aligned;
-use crate::loc_to_hex;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mcts::BiasedRollouts;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::uhp_client::UhpPlayer;
-use crate::Color;
 use crate::{nokamute_version, BasicEvaluator, Board, Bug, Rules, Turn};
 use minimax::*;
-use rand::seq::SliceRandom;
 use std::time::Duration;
 
 //TO DO: check if thread and depth are hardcoded or not, look for "HARDCODED" key word
@@ -597,6 +594,12 @@ pub struct Openings {
     openings: Vec<(String, Vec<Bug>)>,
 }
 
+impl Default for Openings {
+    fn default() -> Self {
+        Openings::new()
+    }
+}
+
 impl Openings {
     pub fn new() -> Self {
         let openings = vec![
@@ -701,9 +704,7 @@ impl Openings {
             }
         }
     }
-    pub fn get_opening(
-        &self, identifier: &str, board: &Board, bug_vector: &Vec<Bug>,
-    ) -> Option<Turn> {
+    pub fn get_opening(&self, identifier: &str, board: &Board, bug_vector: &[Bug]) -> Option<Turn> {
         // for (name, moves) in &self.openings {
         //     if name == identifier && turn_num < moves.len() {
         //         let turn = moves[turn_num].clone();

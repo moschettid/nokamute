@@ -2,7 +2,7 @@ use crate::board::*;
 use crate::bug::Bug;
 use crate::hex_grid::find_aligned_hex;
 use crate::hex_grid::*;
-use crate::{nokamute_version, Board, Rules, Turn};
+use crate::{Board, Rules, Turn};
 use minimax::*;
 
 use minimax::{Evaluation, Evaluator};
@@ -206,7 +206,7 @@ impl BasicEvaluator {
         self.placeable_pillbug_defense_bonus = value;
         self
     }
-    
+
     pub fn pinnable_beetle_factor(&mut self, value: f32) -> &mut Self {
         self.pinnable_beetle_factor = value;
         self
@@ -333,8 +333,7 @@ impl Evaluator for BasicEvaluator {
 
         // Calculate the difference between the two players' played ants.
         let mut ants = [0; 2];
-        let mut movable_bugs = 0;
-        let mut movable_bugs_opponent = 0;
+        let mut movable_bugs = [0; 2];
         let mut num_triangles = [0; 2];
         let mut num_four_pieces = [0; 2];
         let mut num_pockets = [0; 2];
@@ -522,11 +521,7 @@ impl Evaluator for BasicEvaluator {
                 }
             }
 
-            if node.color() == board.to_move() {
-                movable_bugs += 1
-            } else {
-                movable_bugs_opponent += 1;
-            }
+            movable_bugs[node.color() as usize] += 1;
 
             num_triangles[node.color() as usize] += triangles_from_hex(board, hex);
             num_four_pieces[node.color() as usize] += four_pieces_from_hex(board, hex);
@@ -565,10 +560,11 @@ impl Evaluator for BasicEvaluator {
         let mut moves = Vec::new();
         Rules::generate_moves(board, &mut moves);
         let num_moves = moves.len();
-        let mobility_to_move = movable_bugs * num_moves;
-        //TODO: mobility opponent non mi permette di chiamare generate moves
-        let mobility_opponent = 0;
-        let mobility = (mobility_to_move - mobility_opponent) as f32;
+        //TODO: we are not using opponent mobility
+        let mut mobility = [0; 2];
+        mobility[0] = movable_bugs[0] * num_moves;
+        let mobility_score = (mobility[0] - mobility[1]) as f32 * self.mobility_factor;
+
         num_triangles[0] /= 3; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
         num_triangles[1] /= 3;
         num_four_pieces[0] /= 2;
@@ -684,7 +680,7 @@ impl Evaluator for BasicEvaluator {
             + gates_score
             + unplayed_bug_score
             + queen_spawn_score
-            + mobility
+            + mobility_score
             + compactness_score
             + pocket_score
             + beetle_attack
