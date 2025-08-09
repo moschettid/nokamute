@@ -308,7 +308,7 @@ def evaluate_population(population: List[Individual], threads: int):
                         population[winner_idx].fitness += 0.45 * 3
                 else:
                     if winner_idx is not None:
-                        population[winner_idx].fitness += 0.65 * 3
+                        population[winner_idx].fitness += 0.55 * 3
             #check if winner_idx and loser_idx are in 1,2,3,4,5,6
             # if winner_idx < 6 or loser_idx < 6:
             #     print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
