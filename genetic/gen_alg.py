@@ -403,31 +403,122 @@ def crossover(params_a, params_b):
     child_params[remaining_indices] = params_b[remaining_indices]
     return child_params
 
+def read_last_generation_from_log():
+    """Read the last generation from log.txt file if it exists.
+    Returns: (generation_number, population) if successful, None if file is empty or doesn't exist.
+    """
+    try:
+        # Check if file exists
+        import os
+        if not os.path.exists("log.txt") or os.path.getsize("log.txt") == 0:
+            return None
+            
+        # File exists, try to read it
+        with open("log.txt", "r") as log_file:
+            content = log_file.read()
+            
+        # Split content by generations
+        generations = content.split("Generation ")
+        if len(generations) <= 1:
+            print("Error: log.txt exists but does not contain valid generation data.")
+            exit(1)
+            
+        # Get the last generation's data
+        last_gen_data = generations[-1]
+        try:
+            gen_num = int(last_gen_data.split("\n")[0])
+        except ValueError:
+            print("Error: Could not parse generation number from log.txt")
+            exit(1)
+        
+        # Parse individuals' data
+        individuals = []
+        individual_blocks = last_gen_data.split("Fitness: ")
+        
+        # Skip the first element which is the generation header
+        for block in individual_blocks[1:]:
+            lines = block.strip().split("\n")
+            if len(lines) < 3:
+                continue  # Skip invalid blocks
+                
+            try:
+                fitness = float(lines[0].strip())
+                batch_id = int(lines[1].split(":")[1].strip())
+                params_str = lines[2].split("Params: ")[1].strip()
+                
+                # Convert string representation of params to numpy array
+                import ast
+                params = np.array(ast.literal_eval(params_str))
+                
+                ind = Individual(batch_id=batch_id, params=params)
+                ind.fitness = fitness
+                individuals.append(ind)
+            except Exception as e:
+                print(f"Error parsing individual data: {e}")
+                exit(1)
+            
+        if not individuals:
+            print("Error: No valid individuals found in log.txt")
+            exit(1)
+            
+        # Assign individual IDs
+        for i, ind in enumerate(individuals):
+            ind.individual_id = i
+            
+        return (gen_num, individuals)
+    except Exception as e:
+        print(f"Error reading log.txt: {e}")
+        print("The file format is unexpected. Please check the file or remove it to start a new training.")
+        exit(1)
+
 def train(threads: int):
-    population = [Individual(params=starting_individual, individual_id=0)]
-    for k in range(1,6):
-        population.append(Individual(batch_id=0, params=starting_individual, individual_id=k).mutate(50))
-    for k in range(6, POPULATION_SIZE-6):
-        population.append(Individual(batch_id=k//6, params=starting_individual, individual_id=k).mutate(100))
-    for k in range(6):
-        population.append(Individual(batch_id=4, individual_id=k+POPULATION_SIZE-6))
-
-
-    for gen in range(GENERATIONS):
-        print(f"\nGeneration {gen}")
-        evaluate_population(population, threads)
+    # Try to read the last generation from log.txt
+    last_gen_data = read_last_generation_from_log()
+    
+    if last_gen_data:
+        gen_num, population = last_gen_data
+        print(f"Resuming from generation {gen_num}")
+        # Sort by fitness and evolve the population
         population.sort(key=lambda ind: ind.fitness, reverse=True)
-
-        best = population[0]
-        print(f"Best fitness: {best.fitness:.2f}")
-        print(f"Best params (truncated): {best.params[:5]}...")
-        with open("log.txt", "a") as log_file:
-            log_file.write(f"Generation {gen}\n\n")
-            for p in population:
-                log_file.write(f"Fitness: {p.fitness:.2f}\nBatch id: {p.batch_id}\nParams: {p.params.tolist()}\n\n")
-            log_file.write(f"\n\n")
-
         population = evolve_population(population)
+        # Start from the next generation
+        gen_num += 1
+    else:
+        gen_num = 0
+        # Initialize new population
+        population = [Individual(params=starting_individual, individual_id=0)]
+        for k in range(1,6):
+            population.append(Individual(batch_id=0, params=starting_individual, individual_id=k).mutate(50))
+        for k in range(6, POPULATION_SIZE-6):
+            population.append(Individual(batch_id=k//6, params=starting_individual, individual_id=k).mutate(100))
+        for k in range(6):
+            population.append(Individual(batch_id=4, individual_id=k+POPULATION_SIZE-6))
+
+    try:
+        # Run indefinitely instead of for a fixed number of generations
+        while True:
+            print(f"\nGeneration {gen_num}")
+            evaluate_population(population, threads)
+            population.sort(key=lambda ind: ind.fitness, reverse=True)
+
+            best = population[0]
+            print(f"Best fitness: {best.fitness:.2f}")
+            print(f"Best params (truncated): {best.params[:5]}...")
+            
+            # Always append to log file
+            with open("log.txt", "a") as log_file:
+                log_file.write(f"Generation {gen_num}\n\n")
+                for p in population:
+                    log_file.write(f"Fitness: {p.fitness:.2f}\nBatch id: {p.batch_id}\nParams: {p.params.tolist()}\n\n")
+                log_file.write(f"\n\n")
+            
+            # Evolve population for next generation
+            population = evolve_population(population)
+            gen_num += 1
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user.")
+        # Return the best individual from the last generation
+        population.sort(key=lambda ind: ind.fitness, reverse=True)
 
     return population[0]
 
@@ -439,9 +530,6 @@ if __name__ == "__main__":
     parser.add_argument("--threads", type=int, default=1,
                         help="Number of threads (1 = single-core)")
     args = parser.parse_args()
-
-    f = open("log.txt", "w")
-    f.close()
 
     print(f"Running with {args.threads} thread(s)")
     best_agent = train(threads=args.threads)
