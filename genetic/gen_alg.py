@@ -275,20 +275,38 @@ class Individual:
 # FITNESS EVALUATION
 # -------------------------------
 
+def play_match_wrapper(args):
+            """Global wrapper function for play_match to work with imap_unordered"""
+            job, population = args
+            a, b = job
+            return play_match(population[a], population[b])
+
 def evaluate_population(population: List[Individual], threads: int):
     # Define jobs
-    #jobs = generate_jobs(POPULATION_SIZE, 6)
     jobs = generate_all_jobs(POPULATION_SIZE)
 
     if threads > 1:
+        # Create a wrapper function that accepts a single argument (job tuple)
+            
         with Pool(threads) as pool:
-            results = pool.starmap(play_match, [(population[a], population[b]) for a, b in jobs])
+            # Prepare job arguments with population reference
+            job_args = [(job, population) for job in jobs]
+
+            # Use imap_unordered for dynamic load balancing
+            # Results will be returned as soon as any worker completes a task
+            results = []
+            for match_result in pool.imap_unordered(play_match_wrapper, job_args):
+                results.append(match_result)
+                # Optional: print progress after each completion
+                print(f"Progress: {len(results)}/{len(jobs)} matches completed", end="\r")
     else:
         results = [play_match(population[a], population[b]) for a, b in jobs]
 
+    print("\nAll matches completed, updating fitness scores...")
+    
     # Update fitness based on results
     for match_result in results:
-        for (winner, loser, white, draw) in match_result: #maybe refactoring
+        for (winner, loser, white, draw) in match_result:
             winner_idx = winner.individual_id
             loser_idx = loser.individual_id
             if draw:
@@ -309,10 +327,6 @@ def evaluate_population(population: List[Individual], threads: int):
                 else:
                     if winner_idx is not None:
                         population[winner_idx].fitness += 0.55 * 3
-            #check if winner_idx and loser_idx are in 1,2,3,4,5,6
-            # if winner_idx < 6 or loser_idx < 6:
-            #     print(f"Winner: {winner_idx}, Loser: {loser_idx}, Draw: {draw}")
-        
 
 
 # -------------------------------
