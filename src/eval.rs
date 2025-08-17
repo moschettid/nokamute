@@ -52,6 +52,7 @@ pub struct BasicEvaluator {
     mobility_factor: f32,     //count how many bugs can move and how many moves they can do
     compactness_factor: f32,  //check if there are triangles, four pieces or pockets
     pocket_factor: f32,       //count how many pockets are present
+    beetle_attack_factor: f32, //check if we can do a beetle attack
 }
 
 // Ideas:
@@ -89,12 +90,13 @@ impl BasicEvaluator {
             opponent_queen_liberty_penalty_factor: 2.0,
             trap_queen_penalty: 200.0,
             placeable_pillbug_defense_bonus: 20.0,
-            pinnable_beetle_factor: 8.0,
+            pinnable_beetle_factor: 0.125,
             //new factors
             mosquito_ant_factor: 1.0,
             mobility_factor: 1.0,
             compactness_factor: 1.0,
             pocket_factor: 1.0,
+            beetle_attack_factor: 1.0,
         }
     }
 
@@ -219,6 +221,16 @@ impl BasicEvaluator {
         self
     }
 
+    pub fn pocket_factor(&mut self, value: f32) -> &mut Self {
+        self.pocket_factor = value;
+        self
+    }
+
+    pub fn beetle_attack_factor(&mut self, value: f32) -> &mut Self {
+        self.beetle_attack_factor = value;
+        self
+    }
+
     fn value(&self, bug: Bug) -> f32 {
         // Mostly made up. All I know is that ants are good.
         match bug {
@@ -309,6 +321,8 @@ impl Evaluator for BasicEvaluator {
         let mut num_four_pieces_opponent = 0.0;
         let mut num_pockets = 0.0;
         let mut num_pockets_opponent = 0.0;
+        let mut beetle_attack_score = 0.0;
+        let mut beetle_attack_score_opponent = 0.0;
         let mut beetle_on_enemy_queen = [false; 2];
         let mut beetle_on_enemy_pillbug = [false; 2];
         let mut direct_queen_drop_spots = [0; 2];
@@ -519,6 +533,23 @@ impl Evaluator for BasicEvaluator {
                 }
             }
 
+            //if it's a beetle and in adjacent of its adjacent there is a queen add the beetle attack factor
+            // remember that the beetle in this part of the code is not pinned!
+            if node.bug() == Bug::Beetle {
+                // Check if the beetle is adjacent to a queen
+                for adj in adjacent(hex) {
+                    for adj_adj in adjacent(adj) {
+                        if board.node(adj_adj).bug() == Bug::Queen && board.node(adj_adj).color() != node.color() {
+                            if node.color() == board.to_move() {
+                                beetle_attack_score = self.beetle_attack_factor;
+                            } else {
+                                beetle_attack_score_opponent = self.beetle_attack_factor;
+                            }
+                        }
+                    }
+                }
+            }
+
             score += bug_score;
         }
 
@@ -534,6 +565,8 @@ impl Evaluator for BasicEvaluator {
         let mobility = (mobility_to_move - mobility_opponent) as f32;
         num_triangles /= 3.0; //We've counted a triangle every time we've met one of its 3 pieces, so we divide by 3
         num_triangles_opponent /= 3.0;
+        num_four_pieces /= 2.0; 
+        num_four_pieces_opponent /= 2.0; 
         num_pockets /= 2.0; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
         num_pockets_opponent /= 2.0;
         let mut compactness = (num_triangles - num_triangles_opponent) * self.compactness_factor;
@@ -596,18 +629,19 @@ impl Evaluator for BasicEvaluator {
         // before check if there is an available beetle, otherwise the spawn points will be 0
         //check also if there are bugs that can easily pin our beetle in the future
         let mut queen_spawn_score = 0.0;
+        queen_spawn_score = count_queen_spawn_points(board, board.to_move()) as f32;
         if board.remaining[board.to_move() as usize][Bug::Beetle as usize] > 0 {
-            queen_spawn_score = count_queen_spawn_points(board, board.to_move()) as f32;
+            queen_spawn_score *= self.beetle_attack_factor;
             if can_pin_beetle[board.to_move().other() as usize] {
-                queen_spawn_score /= self.pinnable_beetle_factor;
+                queen_spawn_score *= self.pinnable_beetle_factor;
             }
         }
         let mut queen_spawn_score_opponent = 0.0;
+        queen_spawn_score_opponent = count_queen_spawn_points(board, board.to_move().other()) as f32;
         if board.remaining[board.to_move().other() as usize][Bug::Beetle as usize] > 0 {
-            queen_spawn_score_opponent =
-                count_queen_spawn_points(board, board.to_move().other()) as f32;
+            queen_spawn_score_opponent *= self.beetle_attack_factor;
             if can_pin_beetle[board.to_move() as usize] {
-                queen_spawn_score_opponent /= self.pinnable_beetle_factor;
+                queen_spawn_score_opponent *= self.pinnable_beetle_factor;
             }
         }
 
@@ -616,6 +650,10 @@ impl Evaluator for BasicEvaluator {
 
         let queen_score =
             queen_score[board.to_move() as usize] - queen_score[board.to_move().other() as usize];
+
+        let beetle_attack =
+            beetle_attack_score - beetle_attack_score_opponent;
+
         (queen_score
             + pillbug_defense_score
             + score //containing already the mosquito_ant_factor
@@ -624,7 +662,8 @@ impl Evaluator for BasicEvaluator {
             + queen_spawn_score
             + mobility
             + compactness
-            + pocket_score) as Evaluation
+            + pocket_score
+            + beetle_attack) as Evaluation
     }
 
     // The idea here is to use quiescence search to avoid ending on a
