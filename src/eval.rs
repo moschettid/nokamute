@@ -331,7 +331,7 @@ impl Evaluator for BasicEvaluator {
             let cur_node = under_node.node();
             let top_node = board.node(under_node.hex());
             if cur_node.bug() == Bug::Pillbug && top_node.color() != cur_node.color() {
-                beetle_on_enemy_pillbug[cur_node.color() as usize] = true;
+                beetle_on_enemy_pillbug[top_node.color() as usize] = true;
             }
         }
 
