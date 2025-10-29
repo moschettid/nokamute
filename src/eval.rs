@@ -571,10 +571,10 @@ impl Evaluator for BasicEvaluator {
         num_four_pieces[1] /= 2;
         num_pockets[0] /= 2; //We've counted a triangle every time we've met one of its two low angles, so we divide by 2
         num_pockets[1] /= 2;
-        let mut compactness = num_triangles[board.to_move() as usize]
-            - num_triangles[board.to_move().other() as usize];
-        compactness += num_four_pieces[board.to_move() as usize]
-            - num_four_pieces[board.to_move().other() as usize];
+        let mut compactness = num_triangles[board.to_move() as usize] as i8
+            - num_triangles[board.to_move().other() as usize] as i8;
+        compactness += num_four_pieces[board.to_move() as usize] as i8
+            - num_four_pieces[board.to_move().other() as usize] as i8;
         //TODO: reasoning if pockets should be counted apart or not from triangles
         compactness +=
             num_pockets[board.to_move() as usize] - num_pockets[board.to_move().other() as usize];
@@ -660,13 +660,13 @@ impl Evaluator for BasicEvaluator {
             queen_score[board.to_move() as usize] - queen_score[board.to_move().other() as usize];
 
         let beetle_attack = beetle_attack_score - beetle_attack_score_opponent;
-        let beetle_on_enemy_queen_score = (beetle_on_enemy_queen[board.to_move() as usize] as usize
-            - beetle_on_enemy_queen[board.to_move().other() as usize] as usize)
+        let beetle_on_enemy_queen_score = (beetle_on_enemy_queen[board.to_move() as usize] as i8
+            - beetle_on_enemy_queen[board.to_move().other() as usize] as i8)
             as f32
             * self.beetle_on_enemy_queen_factor;
         let beetle_on_enemy_pillbug_score = (beetle_on_enemy_pillbug[board.to_move() as usize]
-            as usize
-            - beetle_on_enemy_pillbug[board.to_move().other() as usize] as usize)
+            as i8
+            - beetle_on_enemy_pillbug[board.to_move().other() as usize] as i8)
             as f32
             * self.beetle_on_enemy_pillbug_factor;
         let direct_queen_drop_score = (direct_queen_drop_spots[board.to_move() as usize]
