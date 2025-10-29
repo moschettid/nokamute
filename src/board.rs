@@ -17,8 +17,11 @@ pub enum Color {
 }
 
 impl Color {
-    pub fn other(self) -> usize {
-        1 - self as usize
+    pub fn other(self) -> Color {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
     }
 }
 
@@ -123,7 +126,7 @@ pub struct Board {
 
 impl Board {
     pub fn to_move(&self) -> Color {
-        if self.turn_num % 2 == 0 {
+        if self.turn_num.is_multiple_of(2) {
             Color::White
         } else {
             Color::Black
@@ -385,7 +388,7 @@ impl Board {
 impl Board {
     fn generate_placements(&self, turns: &mut Vec<Turn>) {
         let mut no_placement = HexSet::new();
-        for &enemy in self.occupied_hexes[self.to_move().other()].iter() {
+        for &enemy in self.occupied_hexes[self.to_move().other() as usize].iter() {
             for adj in adjacent(enemy) {
                 no_placement.set(adj);
             }
@@ -505,7 +508,7 @@ impl Board {
     // unrestricted), climbing bugs need to slide into/out of the higher of
     // source or dest heights.
     // https://www.boardgamegeek.com/thread/332467
-    fn slidable_adjacent_beetle<'a>(
+    pub(crate) fn slidable_adjacent_beetle<'a>(
         &self, out: &'a mut [Hex; 6], orig: Hex, hex: Hex,
     ) -> impl Iterator<Item = Hex> + 'a {
         let mut self_height = self.height(hex);
@@ -886,7 +889,7 @@ impl minimax::Game for Rules {
             Some(minimax::Winner::Draw)
         } else if queens_surrounded[board.to_move() as usize] == 6 {
             Some(minimax::Winner::PlayerJustMoved)
-        } else if queens_surrounded[board.to_move().other()] == 6 {
+        } else if queens_surrounded[board.to_move().other() as usize] == 6 {
             Some(minimax::Winner::PlayerToMove)
         } else {
             None

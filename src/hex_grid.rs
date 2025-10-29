@@ -111,6 +111,7 @@ const HEXSET_NUM_WORDS: usize = GRID_SIZE / 32;
 const HEXSET_SHIFT: u32 = GRID_SIZE.trailing_zeros() - 5;
 const HEXSET_MASK: usize = HEXSET_NUM_WORDS - 1;
 
+#[derive(Clone)]
 pub(crate) struct HexSet {
     table: [u32; HEXSET_NUM_WORDS],
 }
@@ -127,4 +128,52 @@ impl HexSet {
     pub(crate) fn get(&self, hex: Hex) -> bool {
         (self.table[hex as usize & HEXSET_MASK] >> (hex as u32 >> HEXSET_SHIFT)) & 1 != 0
     }
+}
+
+//TO DO: REFACTOR
+pub(crate) fn find_aligned_hex(hex1: Hex, hex2: Hex) -> Option<Hex> {
+    //consecuitevely aligned hexes
+    // Controlla tutte le 6 direzioni da hex1
+    for &direction in Direction::all() {
+        let adjacent_hex = direction.apply(hex1);
+
+        // Se hex2 è adiacente a hex1 in questa direzione
+        if adjacent_hex == hex2 {
+            // Il terzo hex allineato sarà nella stessa direzione da hex2
+            let aligned_hex = direction.apply(hex2);
+            return Some(aligned_hex);
+        }
+    }
+    None
+}
+
+pub(crate) fn is_aligned(hex1: Hex, hex2: Hex, hex3: Hex) -> bool {
+    // if h3 is aligned with h1 and h2, consecutively
+    // Controlla se hex3 è allineato con hex1 e hex2
+    if let Some(expected_hex3) = find_aligned_hex(hex1, hex2) {
+        //hex1, hex2, hex3
+        return expected_hex3 == hex3;
+    }
+
+    // Controlla anche nell'ordine inverso (hex2, hex1, hex3)
+    if let Some(expected_hex3) = find_aligned_hex(hex2, hex1) {
+        //hex2, hex1, hex3
+        return expected_hex3 == hex3;
+    }
+
+    false
+}
+
+pub(crate) fn forms_triangle(hex1: Hex, hex2: Hex, hex3: Hex) -> bool {
+    let adj1 = adjacent(hex1);
+    let adj2 = adjacent(hex2);
+    let adj3 = adjacent(hex3);
+
+    // Ogni hex deve essere nell'array di adiacenze degli altri due
+    adj1.contains(&hex2)
+        && adj1.contains(&hex3)
+        && adj2.contains(&hex1)
+        && adj2.contains(&hex3)
+        && adj3.contains(&hex1)
+        && adj3.contains(&hex2)
 }

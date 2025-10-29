@@ -6,11 +6,11 @@ use minimax::{Game, IterativeOptions, IterativeSearch, ParallelOptions, Parallel
 use nokamute::{loc_to_hex, Board, Bug, Rules, Turn};
 
 fn empty_board_depth(depth: u8) {
-    let mut board = Board::default();
+    let board = Board::default();
     let options = IterativeOptions::new().with_table_byte_size(16000).with_null_window_search(true);
     let mut strategy = IterativeSearch::new(nokamute::BasicEvaluator::default(), options);
     strategy.set_max_depth(depth);
-    let m = strategy.choose_move(&mut board);
+    let m = strategy.choose_move(&board);
     assert!(m.is_some());
 }
 
@@ -39,7 +39,7 @@ fn full_board_depth(depth: u8) {
     let options = IterativeOptions::new().with_table_byte_size(16000).with_null_window_search(true);
     let mut strategy = IterativeSearch::new(nokamute::BasicEvaluator::default(), options);
     strategy.set_max_depth(depth);
-    let m = strategy.choose_move(&mut board);
+    let m = strategy.choose_move(&board);
     assert!(m.is_some());
 }
 
@@ -59,8 +59,8 @@ fn deep_iterations() {
     let opts = IterativeOptions::new().verbose().with_table_byte_size(32 << 20);
     let eval = nokamute::BasicEvaluator::default();
     let strategies: [Box<dyn minimax::Strategy<nokamute::Rules>>; 2] = [
-        Box::new(IterativeSearch::new(eval.clone(), opts)),
-        Box::new(ParallelSearch::new(eval.clone(), opts, ParallelOptions::new())),
+        Box::new(IterativeSearch::new(eval, opts)),
+        Box::new(ParallelSearch::new(eval, opts, ParallelOptions::new())),
     ];
     for mut strategy in strategies {
         strategy.choose_move(&board);
@@ -68,7 +68,7 @@ fn deep_iterations() {
 }
 
 fn main() {
-    let mut filter = std::env::args().skip(1).next().unwrap_or("".to_string());
+    let mut filter = std::env::args().nth(1).unwrap_or("".to_string());
     if filter == "--bench" {
         filter = "".to_string();
     }

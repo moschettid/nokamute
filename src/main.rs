@@ -35,7 +35,7 @@ engine flags:
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    let (config, args) = configure_player().unwrap();
+    let (config, args) = configure_player().unwrap(); //Should return two configs, one for each player
     match args.first().unwrap_or(&"uhp".to_owned()).as_ref() {
         "cli" => {
             terminal_game_interface(config);
@@ -52,6 +52,8 @@ fn main() {
                 .unwrap()
                 .unwrap_or_else(|| "Base+MLP".to_owned());
             let depth: Option<u8> = args.opt_value_from_str("--depth").unwrap();
+            //DEPTH HARDCODED
+            //let depth = Some(4);
             let timeout: Option<String> = args.opt_value_from_str("--timeout").unwrap();
             let args =
                 args.finish().into_iter().map(|s| s.into_string().unwrap()).collect::<Vec<_>>();
