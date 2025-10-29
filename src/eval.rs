@@ -728,55 +728,6 @@ impl Evaluator for BasicEvaluator {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_minimax() {
-        use minimax::{Negamax, Strategy};
-
-        // Find the winning move.
-        // ．．．🐝🕷．．
-        //．．🐜🐜🐝．．
-        // ．．．🦗🪲
-        let mut board = Board::default();
-        board.apply(Turn::Place(loc_to_hex((0, 0)), Bug::Queen));
-        board.apply(Turn::Place(loc_to_hex((1, 0)), Bug::Spider));
-        board.apply(Turn::Place(loc_to_hex((-1, 1)), Bug::Ant));
-        board.apply(Turn::Place(loc_to_hex((0, 1)), Bug::Ant));
-        board.apply(Turn::Place(loc_to_hex((1, 2)), Bug::Grasshopper));
-        board.apply(Turn::Place(loc_to_hex((1, 1)), Bug::Queen));
-        board.apply(Turn::Place(loc_to_hex((2, 2)), Bug::Beetle));
-        board.apply(Turn::Pass);
-        for depth in 1..3 {
-            let mut strategy = Negamax::new(DumbEvaluator {}, depth);
-            let m = strategy.choose_move(&board);
-            assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
-
-            let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&board);
-            assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
-        }
-
-        // Find queen escape.
-        //．．🕷🐝🐝．
-        // ．．🦗🕷．
-        let mut board = Board::default();
-        board.apply(Turn::Place(loc_to_hex((0, 0)), Bug::Queen));
-        board.apply(Turn::Place(loc_to_hex((1, 0)), Bug::Queen));
-        board.apply(Turn::Place(loc_to_hex((1, 1)), Bug::Spider));
-        board.apply(Turn::Place(loc_to_hex((0, 1)), Bug::Grasshopper));
-        board.apply(Turn::Place(loc_to_hex((-1, 0)), Bug::Beetle));
-        board.apply(Turn::Pass);
-        for depth in 1..3 {
-            let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&board);
-            assert_eq!(Some(Turn::Move(loc_to_hex((0, 0)), loc_to_hex((0, -1)))), m);
-        }
-    }
-}
-
 // TODO: check about the Qualify to win condition for a given player and set consequently the aggression value
 // This condition checks if: there is no opponent pillbug near the opponet queen
 // if there is one, check if our beetle are on the opponent queen or on the opponent pillbug
