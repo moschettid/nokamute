@@ -86,7 +86,6 @@ impl<W: Write> UhpServer<W> {
             let dur =
                 parse_hhmmss(arg).ok_or_else(|| UhpError::UnrecognizedCommand(args.to_string()))?;
             self.engine.as_mut().unwrap().set_timeout(dur);
-            self.engine.as_mut().unwrap().set_max_depth(4);
         } else {
             return Err(UhpError::UnrecognizedCommand(args.to_string()));
         }

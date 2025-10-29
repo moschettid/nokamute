@@ -264,6 +264,7 @@ impl Player for NokamutePlayer {
         //     }
         // }
         //////////////////////////////////////////////////////////////////////////////////
+        _ = self.random_opening;
         if self.board.turn_num < 2 {
             let openings = Openings::new();
             let distribution = [0.4, 0.1, 0.1, 0.1, 0.3, 0.0, 0.0, 0.0];
